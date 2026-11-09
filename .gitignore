@@ -1,0 +1,91 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+/lib/
+/lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments (MANDATORY EXCLUSION)
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+
+# Environment variables & secrets (MANDATORY EXCLUSION)
+.env
+.env.*
+!.env.example
+.agents/mcp_config.json
+.agents/gsd-install-state.json
+.agents/gsd-migration-journal/
+.agents/.gsd-staging/
+
+# Django specific
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+media/
+staticfiles/
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+pytestdebug.log
+
+# Ruff & linting cache
+.ruff_cache/
+.mypy_cache/
+
+# IDE & Editor state
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# Operating System files
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Antigravity artifacts & transcripts
+brain/
+scratch/
+
