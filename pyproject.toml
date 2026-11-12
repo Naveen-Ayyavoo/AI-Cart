@@ -1,0 +1,13 @@
+[tool.ruff]
+target-version = "py312"
+exclude = [
+    ".venv",
+    ".agents",
+    "**/migrations/*",
+]
+
+[tool.ruff.lint]
+ignore = [
+    "RUF012",  # Mutable class attributes in Django models and forms Meta
+]
+

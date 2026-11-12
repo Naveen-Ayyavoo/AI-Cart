@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block title %}Results for your request — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Results for your request</h1>
+            <p class="tc-page-intro-sub">
+                Checked products for <strong>{{ contract.product_description }}</strong> against your ${{ contract.max_budget }} {{ contract.currency }} item budget limit ({{ contract.quantity }} {% if contract.quantity == 1 %}unit{% else %}units{% endif %}).
+            </p>
+        </div>
+        <div class="tc-page-intro-actions">
+            <a href="{% url 'contract_discovery' contract.public_ref %}" class="tc-btn tc-btn-secondary">&larr; Back to Shortlist</a>
+            <a href="?refresh=1"
+               class="tc-btn tc-btn-outline"
+               data-loading-link
+               data-loading-label="Checking again..."
+               data-loading-title="Refreshing product checks"
+               data-loading-steps="Checking latest listings|Matching against your requirements|Updating results">Refresh Results</a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="tc-messages" role="alert">
+        {% for message in messages %}
+        <div class="tc-alert tc-alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Understandable Summary Counters -->
+    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0.75rem; margin-bottom: var(--tc-space-lg);">
+        <div class="tc-card" style="padding: 0.9rem 1rem; margin-bottom: 0; text-align: center;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--tc-text-muted); text-transform: uppercase;">Total Checked</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--tc-primary); margin-top: 0.2rem;">{{ total_count }}</div>
+        </div>
+        <div style="background: var(--tc-success-bg); border: 1px solid var(--tc-success-border); border-radius: var(--tc-radius-lg); padding: 0.9rem 1rem; text-align: center;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--tc-success-text); text-transform: uppercase;">Meets Your Requirements</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--tc-success); margin-top: 0.2rem;">{{ eligible_reports|length }}</div>
+        </div>
+        <div style="background: var(--tc-warning-bg); border: 1px solid var(--tc-warning-border); border-radius: var(--tc-radius-lg); padding: 0.9rem 1rem; text-align: center;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--tc-warning-text); text-transform: uppercase;">Needs More Details</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--tc-warning-text); margin-top: 0.2rem;">{{ unknown_reports|length }}</div>
+        </div>
+        <div style="background: var(--tc-danger-bg); border: 1px solid var(--tc-danger-border); border-radius: var(--tc-radius-lg); padding: 0.9rem 1rem; text-align: center;">
+            <div style="font-size: 0.75rem; font-weight: 700; color: var(--tc-danger-text); text-transform: uppercase;">Does Not Meet Requirements</div>
+            <div style="font-size: 1.55rem; font-weight: 800; color: var(--tc-danger); margin-top: 0.2rem;">{{ ineligible_reports|length }}</div>
+        </div>
+    </div>
+
+    <!-- Shipping & Tax Disclosure -->
+    <div class="tc-non-payment-notice" style="margin-top: 0; margin-bottom: var(--tc-space-lg);">
+        <span style="font-size: 1.1rem; color: var(--tc-accent);" aria-hidden="true">&#x2139;</span>
+        <p class="tc-prose">
+            <strong>Item pricing only:</strong> Prices below compare item subtotals (unit price &times; quantity) against your item budget limit. Shipping rates and taxes are currently unconfirmed and will be shown clearly before any payment approval.
+        </p>
+    </div>
+
+    <!-- Optional Budget Revision Option When Items Exceed Budget Limit -->
+    {% if over_budget_count > 0 %}
+    <section class="tc-card" style="background: var(--tc-warning-bg); border: 1px solid var(--tc-warning-border); border-left: 4px solid var(--tc-warning); margin-bottom: var(--tc-space-lg);" aria-labelledby="eval-budget-heading">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+                <h2 id="eval-budget-heading" style="font-size: 1.05rem; font-weight: 800; color: var(--tc-warning-text); margin: 0;">
+                    {{ over_budget_count }} item{{ over_budget_count|pluralize }} exceeded your ${{ contract.max_budget }} {{ contract.currency }} item budget limit
+                </h2>
+                <p class="tc-prose" style="font-size: 0.875rem; color: var(--tc-warning-text); margin: 0.3rem 0 0 0;">
+                    {% if min_over_budget_subtotal %}Over-budget options start at <strong>${{ min_over_budget_subtotal }} {{ contract.currency }}</strong> (items only). {% endif %}
+                    You can prepare a revised shopping plan with a higher budget limit without authorizing any payment.
+                </p>
+            </div>
+            <a href="{% url 'contract_review' contract.public_ref %}" class="tc-btn tc-btn-outline tc-btn-sm" style="background: #ffffff;">Edit Criteria</a>
+        </div>
+        <form method="POST"
+              action="{% url 'contract_revise_budget' contract.public_ref %}"
+              style="margin-top: var(--tc-space-sm); padding-top: var(--tc-space-sm); border-top: 1px solid var(--tc-warning-border);"
+              data-loading-form
+              data-loading-label="Preparing updated plan...">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="evaluation">
+            <div style="display: flex; gap: 0.75rem; align-items: end; flex-wrap: wrap;">
+                <div>
+                    <label class="tc-label" for="eval-revise-budget" style="font-size: 0.8rem;">Revised Item Budget Limit ({{ contract.currency }})</label>
+                    <input type="number"
+                           id="eval-revise-budget"
+                           name="max_budget"
+                           step="0.01"
+                           min="0.01"
+                           required
+                           value="{% if min_over_budget_subtotal and min_over_budget_subtotal > contract.max_budget %}{{ min_over_budget_subtotal }}{% else %}{{ contract.max_budget }}{% endif %}"
+                           class="tc-input tc-input-sm"
+                           style="width: 170px;">
+                </div>
+                <button type="submit" class="tc-btn tc-btn-primary tc-btn-sm">
+                    Update Budget &amp; Review &rarr;
+                </button>
+            </div>
+        </form>
+    </section>
+    {% endif %}
+
+    <!-- SECTION 1: MEETS YOUR REQUIREMENTS -->
+    <section style="margin-bottom: var(--tc-space-xl);" aria-labelledby="eligible-heading">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--tc-space-md); flex-wrap: wrap; gap: 0.5rem;">
+            <h2 id="eligible-heading" style="font-size: 1.25rem; font-weight: 700; color: var(--tc-success-text); display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                <span aria-hidden="true">&#x2714;</span> Meets Your Requirements ({{ eligible_reports|length }})
+            </h2>
+            <span class="tc-badge tc-badge-success">Ready to Select</span>
+        </div>
+
+        {% if eligible_reports %}
+        <div class="tc-eval-grid">
+            {% for report in eligible_reports %}
+            {% include "policies/_eval_card.html" with report=report variant="eligible" %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="tc-card" style="text-align: center; color: var(--tc-text-muted); padding: 1.5rem;">
+            No checked products met all of your requirements yet. Try updating your criteria or budget limit above.
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- SECTION 2: NEEDS MORE DETAILS -->
+    {% if unknown_reports %}
+    <section style="margin-bottom: var(--tc-space-xl);" aria-labelledby="uncertain-heading">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--tc-space-md); flex-wrap: wrap; gap: 0.5rem;">
+            <h2 id="uncertain-heading" style="font-size: 1.25rem; font-weight: 700; color: var(--tc-warning-text); display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                <span aria-hidden="true">&#x26A0;</span> Needs More Details ({{ unknown_reports|length }})
+            </h2>
+            <span class="tc-badge tc-badge-warning">Missing Seller Details</span>
+        </div>
+        <div class="tc-eval-grid">
+            {% for report in unknown_reports %}
+            {% include "policies/_eval_card.html" with report=report variant="uncertain" %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- SECTION 3: DOES NOT MEET REQUIREMENTS -->
+    {% if ineligible_reports %}
+    <section style="margin-bottom: var(--tc-space-xl);" aria-labelledby="ineligible-heading">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--tc-space-md); flex-wrap: wrap; gap: 0.5rem;">
+            <h2 id="ineligible-heading" style="font-size: 1.25rem; font-weight: 700; color: var(--tc-danger-text); display: flex; align-items: center; gap: 0.5rem; margin: 0;">
+                <span aria-hidden="true">&#x2718;</span> Does Not Meet Requirements ({{ ineligible_reports|length }})
+            </h2>
+            <span class="tc-badge tc-badge-danger">Excluded by Budget or Specs</span>
+        </div>
+        <div class="tc-eval-grid">
+            {% for report in ineligible_reports %}
+            {% include "policies/_eval_card.html" with report=report variant="ineligible" %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Bottom Navigation -->
+    <div class="tc-card" style="background: linear-gradient(135deg, #ffffff 0%, var(--tc-surface-subtle) 100%);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+            <div>
+                <h2 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-primary); margin: 0 0 0.2rem 0;">
+                    Need to compare again?
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--tc-text-muted); margin: 0;">
+                    Return to the shortlisted options or start a fresh product search.
+                </p>
+            </div>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                <a href="{% url 'contract_discovery' contract.public_ref %}" class="tc-btn tc-btn-secondary">
+                    &larr; Back to Shortlist
+                </a>
+                <a href="{% url 'home' %}" class="tc-btn tc-btn-outline">
+                    New Search
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

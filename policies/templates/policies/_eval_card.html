@@ -1,0 +1,146 @@
+<article class="tc-eval-card"
+         style="{% if variant == 'eligible' %}border: 2px solid var(--tc-success);{% elif variant == 'uncertain' %}border: 2px solid var(--tc-warning);{% else %}border: 1px solid var(--tc-danger-border); border-left: 4px solid var(--tc-danger);{% endif %}">
+    <div class="tc-eval-card-inner">
+        <div class="tc-eval-media {% if report.is_apparel_image %}tc-eval-media-apparel{% else %}tc-eval-media-square{% endif %}">
+            {% if report.display_image_url %}
+            <img src="{{ report.display_image_url }}"
+                 alt="{{ report.product.title }}"
+                 decoding="async"
+                 onerror="this.hidden=true; if (this.nextElementSibling) { this.nextElementSibling.hidden=false; }">
+            <div class="tc-eval-fallback" hidden aria-hidden="true">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <path d="M21 15l-5-5L5 21"></path>
+                </svg>
+                <span>Product image unavailable</span>
+            </div>
+            {% else %}
+            <div class="tc-eval-fallback" aria-hidden="true">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="3"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <path d="M21 15l-5-5L5 21"></path>
+                </svg>
+                <span>Product image unavailable</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="tc-eval-content">
+            <div>
+                {% if report.product.brand %}
+                <div style="font-size: 0.72rem; font-weight: 700; color: var(--tc-accent); text-transform: uppercase; letter-spacing: 0.04em; margin-bottom: 0.15rem;">
+                    {{ report.product.brand }}
+                </div>
+                {% endif %}
+                <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-primary); margin: 0 0 0.35rem 0; line-height: 1.3;">
+                    {{ report.product.title }}
+                </h3>
+                {% if report.product.description and variant == 'eligible' %}
+                <p style="font-size: 0.84rem; color: var(--tc-text-muted); margin: 0; line-height: 1.45;">
+                    {{ report.product.description|truncatewords:18 }}
+                </p>
+                {% endif %}
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: baseline;">
+                <span style="font-size: 1.35rem; font-weight: 800; color: {% if variant == 'ineligible' %}var(--tc-danger){% else %}var(--tc-primary){% endif %};">
+                    ${{ report.total_item_price }} {{ report.currency }}
+                </span>
+                <span style="font-size: 0.8rem; color: var(--tc-text-muted);">
+                    (${{ report.unit_price }} &times; {{ report.quantity }} unit{{ report.quantity|pluralize }})
+                </span>
+            </div>
+
+            <div style="display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: center;">
+                {% if variant == 'eligible' %}
+                <span class="tc-badge tc-badge-success">Meets Requirements</span>
+                <span class="tc-badge tc-badge-primary">Match: {{ report.preference_score }}%</span>
+                <span class="tc-badge tc-badge-outline">In Stock</span>
+                {% elif variant == 'uncertain' %}
+                <span class="tc-badge tc-badge-warning">Needs More Details</span>
+                {% else %}
+                <span class="tc-badge tc-badge-danger">Does Not Meet Requirements</span>
+                {% endif %}
+                <span class="tc-badge tc-badge-spec">Seller: {{ report.product.source_merchant }}</span>
+            </div>
+
+            {% if variant == 'eligible' %}
+            <div style="font-size: 0.8125rem; color: var(--tc-success-text); font-weight: 600;">
+                &#x2714; Item subtotal fits your ${{ report.budget_ceiling }} budget limit
+            </div>
+            {% elif variant == 'uncertain' %}
+            <p style="font-size: 0.84rem; color: var(--tc-warning-text); margin: 0; line-height: 1.45;">
+                <strong>Why it needs details:</strong> {{ report.summary }}
+            </p>
+            {% else %}
+            <p style="font-size: 0.84rem; color: var(--tc-danger-text); margin: 0; line-height: 1.45;">
+                <strong>Why it did not qualify:</strong> {{ report.summary }}
+            </p>
+            {% endif %}
+
+            {% if variant == 'eligible' and report.display_matched_prefs %}
+            <div style="display: flex; flex-wrap: wrap; gap: 0.3rem; align-items: center;">
+                <span style="font-size: 0.78rem; font-weight: 600; color: var(--tc-success-text);">Matched preferences:</span>
+                {% for pref in report.display_matched_prefs %}
+                <span class="tc-badge tc-badge-pref">{{ pref }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="tc-eval-card-foot">
+        {% if variant == 'eligible' %}
+        <div>
+            <a href="{% url 'proposal_create_from_evaluation' report.id %}"
+               class="tc-btn tc-btn-primary tc-btn-sm"
+               style="min-height: 44px; padding: 0.55rem 1.2rem;"
+               data-loading-link
+               data-loading-label="Preparing summary..."
+               data-loading-title="Preparing your purchase summary"
+               data-loading-steps="Checking availability and price|Calculating item breakdown|Opening purchase summary">
+                Select &amp; Review Summary <span class="visually-hidden">for {{ report.product.title }}</span> &rarr;
+            </a>
+        </div>
+        {% endif %}
+
+        {% if report.display_rules %}
+        <details class="tc-eval-audit-details">
+            <summary class="tc-eval-audit-summary">View check details ({{ report.display_rules|length }} checks)</summary>
+            <div style="overflow-x: auto; padding-top: 0.5rem;">
+                <table class="tc-table" style="font-size: 0.78rem;">
+                    <thead>
+                        <tr>
+                            <th>Check</th>
+                            <th>Result</th>
+                            <th>Expected</th>
+                            <th>Found</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in report.display_rules %}
+                        <tr>
+                            <td style="font-weight: 600;">{{ rule.display_name }}</td>
+                            <td>
+                                {% if rule.outcome == 'PASS' %}
+                                <span style="color: var(--tc-success); font-weight: 700;">Passed</span>
+                                {% elif rule.outcome == 'UNKNOWN' %}
+                                <span style="color: var(--tc-warning-text); font-weight: 700;">Unclear</span>
+                                {% else %}
+                                <span style="color: var(--tc-danger); font-weight: 700;">Did not match</span>
+                                {% endif %}
+                            </td>
+                            <td style="color: var(--tc-text-muted);">{{ rule.expected_value }}</td>
+                            <td>{{ rule.observed_value }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </details>
+        {% endif %}
+    </div>
+</article>
+

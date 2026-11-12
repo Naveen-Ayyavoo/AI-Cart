@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block title %}Requirements Confirmed{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Shopping Requirements Confirmed</h1>
+            <p class="tc-page-intro-sub">
+                Your search preferences are saved for Version {{ contract.version }}. Next, AI Cart will look for matching products within your target item budget.
+            </p>
+        </div>
+    </div>
+
+    <div class="tc-confirm-layout">
+        <div class="tc-confirm-stack">
+            <!-- Shopping request summary -->
+            <section class="tc-card" aria-labelledby="card-request-heading">
+                <div class="tc-card-header" style="margin-bottom: 0.75rem; padding-bottom: 0.65rem;">
+                    <h2 id="card-request-heading" class="tc-decision-title" style="margin: 0;">Shopping request</h2>
+                    <span class="tc-badge tc-badge-success">Confirmed</span>
+                </div>
+                <p style="font-size: 1.05rem; font-weight: 600; color: var(--tc-primary); margin: 0 0 0.75rem 0;">
+                    {{ contract.product_description }}
+                </p>
+                <div class="tc-kv-grid">
+                    <div class="tc-kv-item">
+                        <div class="tc-kv-label">Category</div>
+                        <div class="tc-kv-value" style="font-size: 0.95rem;">{{ contract.category }}</div>
+                    </div>
+                    <div class="tc-kv-item">
+                        <div class="tc-kv-label">Plan Version</div>
+                        <div class="tc-kv-value" style="font-size: 0.95rem;">Version {{ contract.version }}</div>
+                    </div>
+                </div>
+                {% if display_required_specs or display_preferred_specs %}
+                <div class="tc-spec-pills" aria-label="Saved specifications">
+                    {% for spec in display_required_specs %}
+                    <span class="tc-spec-pill"><strong>Must have:</strong>&nbsp;{{ spec.label }}: {{ spec.value }}</span>
+                    {% endfor %}
+                    {% for spec in display_preferred_specs %}
+                    <span class="tc-spec-pill">Preferred {{ spec.label }}: {{ spec.value }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                {% if contract.excluded_terms %}
+                <div class="tc-spec-pills" aria-label="What to exclude" style="margin-top: 0.5rem;">
+                    {% for term in contract.excluded_terms %}
+                    <span class="tc-spec-pill" style="border-color: var(--tc-danger-border); color: var(--tc-danger-text); background: var(--tc-danger-bg);">Avoid: {{ term }}</span>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </section>
+
+            <!-- Budget and quantity -->
+            <section class="tc-card" aria-labelledby="card-budget-heading">
+                <h2 id="card-budget-heading" class="tc-decision-title">Budget and quantity</h2>
+                <div class="tc-kv-grid">
+                    <div class="tc-kv-item">
+                        <div class="tc-kv-label">Item Budget Limit</div>
+                        <div class="tc-kv-value" style="font-size: 1.35rem;">${{ contract.max_budget }} {{ contract.currency }}</div>
+                    </div>
+                    <div class="tc-kv-item">
+                        <div class="tc-kv-label">Quantity</div>
+                        <div class="tc-kv-value" style="font-size: 1.35rem;">{{ contract.quantity }} {% if contract.quantity == 1 %}unit{% else %}units{% endif %}</div>
+                    </div>
+                </div>
+                <p class="tc-prose" style="margin: 0.75rem 0 0 0; font-size: 0.875rem; color: var(--tc-text-muted); line-height: 1.5;">
+                    Products are screened against this item subtotal ceiling (unit price &times; quantity). It is a maximum limit for the items, not a final delivered cost guarantee.
+                </p>
+            </section>
+
+            <!-- Important purchase information -->
+            <section class="tc-card" aria-labelledby="card-purchase-heading">
+                <h2 id="card-purchase-heading" class="tc-decision-title">Important purchase information</h2>
+                <p class="tc-prose" style="margin: 0 0 0.85rem 0; font-size: 0.925rem; color: var(--tc-text); line-height: 1.55;">
+                    <strong>No product or seller is selected yet.</strong> On the next page, you can inspect product options, compare prices, merchants, and product details, and choose the item you want before any purchase summary is prepared.
+                </p>
+                <div class="tc-alert tc-alert-warning" style="margin-bottom: 0;">
+                    <div>
+                        <strong>Shipping and tax are currently unconfirmed.</strong> Merchant shipping fees and applicable taxes cannot be verified at the requirements stage. You will review confirmed itemized charges on your purchase summary before any payment step.
+                    </div>
+                </div>
+            </section>
+        </div>
+
+        <aside class="tc-confirm-aside">
+            <!-- Confirmation and payment -->
+            <section class="tc-card" aria-labelledby="card-payment-heading" style="border-color: #93c5fd; background: linear-gradient(180deg, #ffffff 0%, #f8fbff 100%);">
+                <h2 id="card-payment-heading" class="tc-decision-title">Confirmation and payment</h2>
+                <p class="tc-prose" style="margin: 0 0 0.9rem 0; font-size: 0.925rem; color: var(--tc-text); line-height: 1.55;">
+                    <strong>Confirming your requirements is not a payment.</strong> No money is charged and no order has been placed.
+                </p>
+                <p class="tc-prose" style="margin: 0 0 1.25rem 0; font-size: 0.875rem; color: var(--tc-text-muted); line-height: 1.55;">
+                    Selecting a product, approving your final purchase summary, and authorizing test payment with PayPal Sandbox happen as separate steps later. Demo Sandbox purchases settle with a test sandbox merchant account, never a live store.
+                </p>
+
+                <div class="tc-actions tc-action-bar" style="justify-content: flex-end;">
+                    <a href="{% url 'contract_review' contract.public_ref %}" class="tc-btn tc-btn-outline">
+                        &larr; Edit Requirements
+                    </a>
+                    <a href="{% url 'contract_discovery' contract.public_ref %}"
+                       class="tc-btn tc-btn-primary tc-btn-lg"
+                       data-loading-link
+                       data-loading-label="Searching Channel3..."
+                       data-loading-title="Searching Channel3 product catalogue"
+                       data-loading-subtitle="Searching Channel3's product catalogue and retrieving product details before checking requirements."
+                       data-loading-steps="Searching Channel3's product catalogue|Retrieving product details and availability|Checking matches against your requirements">
+                        Find Matching Products &rarr;
+                    </a>
+                </div>
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}

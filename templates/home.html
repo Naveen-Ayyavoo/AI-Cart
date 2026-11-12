@@ -1,0 +1,338 @@
+{% extends "base.html" %}
+
+{% block title %}AI Cart — Intelligence in Every Click{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container tc-home-container">
+    {% if messages %}
+    <div class="tc-messages" role="alert">
+        {% for message in messages %}
+        <div class="tc-alert tc-alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Single-Purpose Search Hero -->
+    <div class="tc-search-hero">
+        <h1 class="tc-search-headline">What are you looking for?</h1>
+        <p class="tc-search-subheadline">
+            Describe what you need in plain English. AI Cart understands your requirements, verifies real-world product evidence, and safeguards your budget.
+        </p>
+
+        <!-- Prominent Search Card -->
+        <div class="tc-search-box-card">
+            <search>
+                <form method="POST" action="{% url 'contract_create' %}" id="intake-form" aria-label="Shopping requirement search">
+                    {% csrf_token %}
+                    <input type="hidden" name="scenario_key" id="scenario-key-input" value="">
+
+                    <div class="tc-search-input-wrap">
+                        <label for="shopper-prompt-input" class="tc-search-label">
+                            <span>Describe What You Want to Purchase</span>
+                            <span class="tc-char-counter" id="prompt-char-help">
+                                <span id="char-count">0</span> / 2,000 characters
+                            </span>
+                        </label>
+                        <div class="tc-search-field-container">
+                            {{ form.prompt }}
+                            <button type="submit" class="tc-btn tc-btn-primary tc-search-submit-btn" id="submit-intake-btn">
+                                <span>Find products</span>
+                                <span aria-hidden="true">&rarr;</span>
+                            </button>
+                        </div>
+                        <div class="tc-field-error" id="prompt-client-error" role="alert" {% if not form.prompt.errors %}hidden{% endif %}>
+                            {% if form.prompt.errors %}{{ form.prompt.errors|striptags }}{% endif %}
+                        </div>
+                        <div class="tc-inline-status" id="home-inline-loading-status" hidden role="status" aria-live="polite">
+                            <span class="tc-inline-status-main">
+                                <span class="tc-spinner" style="color: var(--tc-accent);" aria-hidden="true"></span>
+                                <span id="home-inline-loading-text">Understanding your requirements...</span>
+                            </span>
+                            <button type="button" class="tc-btn tc-btn-outline tc-btn-xs" id="home-inline-cancel-btn" hidden>
+                                Stop Waiting
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Collapsed Optional Refinements (Progressive Disclosure) -->
+                    <details class="tc-more-preferences" id="more-preferences-details">
+                        <summary class="tc-more-preferences-summary">
+                            <span class="tc-pref-toggle-text">More preferences (optional)</span>
+                            <span class="tc-pref-caret" aria-hidden="true">&#x25BE;</span>
+                        </summary>
+                        <div class="tc-preferences-panel">
+                            <p class="tc-pref-hint">Specify optional constraints upfront, or leave them blank to review and customize on the next step.</p>
+                            <div class="tc-pref-grid">
+                                <div class="tc-pref-field">
+                                    <label for="refine-max-budget" class="tc-pref-label">Max Budget (USD)</label>
+                                    <div class="tc-input-prefix-wrapper">
+                                        <span class="tc-input-prefix" aria-hidden="true">$</span>
+                                        {{ form.max_budget }}
+                                    </div>
+                                </div>
+                                <div class="tc-pref-field">
+                                    <label for="refine-quantity" class="tc-pref-label">Quantity</label>
+                                    {{ form.quantity }}
+                                </div>
+                                <div class="tc-pref-field tc-pref-wide">
+                                    <label for="refine-excluded-terms" class="tc-pref-label">Exclude Terms or Brands</label>
+                                    {{ form.excluded_terms }}
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+                </form>
+            </search>
+
+            <!-- Helpful Example Suggestions -->
+            <div class="tc-search-suggestions" role="region" aria-label="Sample Shopping Scenarios">
+                <span class="tc-suggestions-title">Try a Sample Shopping Scenario:</span>
+                <div class="tc-suggestions-chips">
+                    {% for scenario in scenarios %}
+                    <button type="button"
+                            class="tc-suggestion-chip"
+                            data-prompt="{{ scenario.prompt }}"
+                            data-key="{{ scenario.key }}"
+                            data-title="{{ scenario.title }}"
+                            title="Load Demo Scenario: {{ scenario.title }}">
+                        {{ scenario.title }}
+                    </button>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Reassuring Qualified Trust Strip (Accurate Disclosures) -->
+        <div class="tc-trust-strip" aria-label="Shopping protections">
+            <div class="tc-trust-item">
+                <span class="tc-trust-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    </svg>
+                </span>
+                <span class="tc-trust-text"><strong>Item Budget Ceiling:</strong> Hard limit on base item price; shipping and taxes confirmed before approval</span>
+            </div>
+            <div class="tc-trust-item">
+                <span class="tc-trust-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="20 6 9 17 4 12"></polyline>
+                    </svg>
+                </span>
+                <span class="tc-trust-text"><strong>External Product Evidence:</strong> Real catalog data via Channel3 (or labeled demonstration fixtures)</span>
+            </div>
+            <div class="tc-trust-item">
+                <span class="tc-trust-icon" aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                    </svg>
+                </span>
+                <span class="tc-trust-text"><strong>PayPal Sandbox Checkout:</strong> Controlled demo merchant execution; server-side capture with explicit approval</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const textarea = document.getElementById('shopper-prompt-input');
+        const counter = document.getElementById('char-count');
+        const submitBtn = document.getElementById('submit-intake-btn');
+        const intakeForm = document.getElementById('intake-form');
+        const scenarioKeyInput = document.getElementById('scenario-key-input');
+        const suggestionChips = document.querySelectorAll('.tc-suggestion-chip');
+        const clientError = document.getElementById('prompt-client-error');
+        const prefInputs = [
+            document.getElementById('refine-max-budget'),
+            document.getElementById('refine-quantity'),
+            document.getElementById('refine-excluded-terms'),
+        ];
+
+        if (submitBtn && !submitBtn.dataset.idleHtml) {
+            submitBtn.dataset.idleHtml = submitBtn.innerHTML;
+        }
+
+        function setPromptError(msg) {
+            if (!textarea || !clientError) return;
+            if (msg) {
+                clientError.textContent = msg;
+                clientError.hidden = false;
+                textarea.setAttribute('aria-invalid', 'true');
+                textarea.setAttribute('aria-describedby', 'prompt-char-help prompt-client-error');
+            } else {
+                clientError.textContent = '';
+                clientError.hidden = true;
+                textarea.setAttribute('aria-invalid', 'false');
+                textarea.setAttribute('aria-describedby', 'prompt-char-help');
+            }
+        }
+
+        function updateCounter() {
+            if (!textarea || !counter) return;
+            const len = textarea.value.length;
+            counter.textContent = len;
+            if (len > 1900) {
+                counter.style.color = 'var(--tc-danger)';
+                counter.style.fontWeight = '700';
+            } else {
+                counter.style.color = 'var(--tc-text-subtle)';
+                counter.style.fontWeight = 'normal';
+            }
+        }
+
+        const inlineStatus = document.getElementById('home-inline-loading-status');
+        const inlineStatusText = document.getElementById('home-inline-loading-text');
+        const inlineCancelBtn = document.getElementById('home-inline-cancel-btn');
+        let homeSlowTimerId = null;
+
+        function showInlineLoading(message) {
+            if (inlineStatusText && message) {
+                inlineStatusText.textContent = message;
+            }
+            if (inlineCancelBtn) inlineCancelBtn.hidden = true;
+            if (inlineStatus) inlineStatus.hidden = false;
+            if (window.AICartUI && message) {
+                window.AICartUI.announce(message);
+            }
+            if (homeSlowTimerId) clearTimeout(homeSlowTimerId);
+            homeSlowTimerId = window.setTimeout(() => {
+                if (inlineCancelBtn && inlineStatus && !inlineStatus.hidden) {
+                    inlineCancelBtn.hidden = false;
+                }
+            }, 15000);
+        }
+
+        function resetIntakeControls() {
+            if (homeSlowTimerId) {
+                clearTimeout(homeSlowTimerId);
+                homeSlowTimerId = null;
+            }
+            if (inlineStatus) inlineStatus.hidden = true;
+            if (inlineCancelBtn) inlineCancelBtn.hidden = true;
+            if (window.AICartUI) {
+                window.AICartUI.resetAll();
+            }
+            if (submitBtn) {
+                delete submitBtn.dataset.submitting;
+                submitBtn.disabled = false;
+                submitBtn.removeAttribute('aria-busy');
+                submitBtn.style.opacity = '';
+                if (submitBtn.dataset.idleHtml) {
+                    submitBtn.innerHTML = submitBtn.dataset.idleHtml;
+                }
+            }
+            suggestionChips.forEach(chip => {
+                chip.disabled = false;
+                chip.removeAttribute('aria-busy');
+            });
+            // Clear stale scenario_key so returning via browser Back never overrides a new user edit
+            if (scenarioKeyInput) {
+                scenarioKeyInput.value = '';
+            }
+            updateCounter();
+        }
+
+        if (inlineCancelBtn) {
+            inlineCancelBtn.addEventListener('click', function() {
+                try { window.stop(); } catch (e) {}
+                resetIntakeControls();
+            });
+        }
+
+        if (textarea) {
+            if (!clientError || clientError.hidden) {
+                textarea.setAttribute('aria-invalid', 'false');
+                textarea.setAttribute('aria-describedby', 'prompt-char-help');
+            } else {
+                textarea.setAttribute('aria-invalid', 'true');
+                textarea.setAttribute('aria-describedby', 'prompt-char-help prompt-client-error');
+            }
+
+            textarea.addEventListener('input', function() {
+                updateCounter();
+                // Any manual edit clears scenario_key so edited prompt is parsed normally
+                if (scenarioKeyInput) {
+                    scenarioKeyInput.value = '';
+                }
+                if (clientError && !clientError.hidden && textarea.value.trim().length >= 3 && textarea.value.length <= 2000) {
+                    setPromptError('');
+                }
+            });
+            updateCounter();
+        }
+
+        prefInputs.forEach(el => {
+            if (!el) return;
+            el.addEventListener('input', function() {
+                if (scenarioKeyInput && (!textarea || !textarea.dataset.fromScenario)) {
+                    scenarioKeyInput.value = '';
+                }
+            });
+        });
+
+        // Demo Scenario Chip Interaction: populate request cleanly & enter normal review flow
+        suggestionChips.forEach(chip => {
+            chip.addEventListener('click', function() {
+                if (submitBtn && submitBtn.dataset.submitting === 'true') return;
+                const promptText = this.getAttribute('data-prompt') || '';
+                const key = this.getAttribute('data-key') || '';
+                const title = this.getAttribute('data-title') || 'Sample scenario';
+
+                setPromptError('');
+                if (textarea) {
+                    textarea.value = promptText;
+                    updateCounter();
+                }
+                if (scenarioKeyInput) {
+                    scenarioKeyInput.value = key;
+                }
+                suggestionChips.forEach(c => {
+                    c.disabled = true;
+                });
+                this.setAttribute('aria-busy', 'true');
+
+                if (window.AICartUI) {
+                    window.AICartUI.setButtonLoading(submitBtn, 'Loading...');
+                }
+                showInlineLoading('Loading sample "' + title + '" for review.');
+                intakeForm.submit();
+            });
+        });
+
+        if (intakeForm && submitBtn) {
+            intakeForm.addEventListener('submit', function(e) {
+                if (submitBtn.dataset.submitting === 'true') {
+                    e.preventDefault();
+                    return;
+                }
+                const promptVal = textarea ? textarea.value.trim() : '';
+                if (promptVal.length < 3) {
+                    e.preventDefault();
+                    setPromptError('Please describe what you are looking for (at least 3 characters) or select a sample scenario.');
+                    if (textarea) textarea.focus();
+                    return;
+                }
+                if (promptVal.length > 2000) {
+                    e.preventDefault();
+                    setPromptError('Your shopping request cannot exceed 2,000 characters.');
+                    if (textarea) textarea.focus();
+                    return;
+                }
+                setPromptError('');
+                suggestionChips.forEach(c => { c.disabled = true; });
+                if (window.AICartUI) {
+                    window.AICartUI.setButtonLoading(submitBtn, 'Preparing...');
+                }
+                showInlineLoading('Preparing your shopping requirements for review.');
+            });
+        }
+
+        // Restore button & chip controls unconditionally when page loads or returns via Back/Forward history
+        window.addEventListener('pageshow', resetIntakeControls);
+    });
+</script>
+{% endblock %}

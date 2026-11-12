@@ -1,0 +1,21 @@
+# Secrets and environment
+.env
+.env.*
+*.sqlite3
+*.sqlite3-journal
+
+# Virtual environment and node
+.venv/
+node_modules/
+
+# Version control and agent artifacts
+.git/
+.planning/
+.agents/
+graphify-out/
+.graphify-runtime/
+brain/
+scratch/
+__pycache__/
+*.pyc
+

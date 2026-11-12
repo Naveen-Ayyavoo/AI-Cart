@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block title %}Access Restricted{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-card" style="max-width: 680px; margin: 2rem auto;">
+        <div class="tc-alert tc-alert-danger" role="alert">
+            <div>
+                <h1 style="font-size: 1.25rem; font-weight: 800; margin: 0 0 0.35rem 0;">This shopping session cannot be opened here</h1>
+                <p style="margin: 0;">For privacy and security, shopping requests and purchase summaries are tied to the browser session that created them.</p>
+            </div>
+        </div>
+        <p class="tc-prose" style="color: var(--tc-text-muted); margin-bottom: 1.25rem;">
+            Start a new search in this browser to compare products and review your options.
+        </p>
+        <div class="tc-actions">
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-primary">Return to Search</a>
+        </div>
+    </div>
+</div>
+{% endblock %}
+

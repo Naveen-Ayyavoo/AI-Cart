@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Purchase Approval Ready — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Purchase Summary Approved</h1>
+            <p class="tc-page-intro-sub">
+                Your single-use approval pass is active for 15 minutes and locked to these exact purchase details.
+            </p>
+        </div>
+        <div class="tc-page-intro-actions">
+            <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-secondary tc-btn-sm">&larr; Back to Results</a>
+        </div>
+    </div>
+
+    <!-- Hero Confirmation Card -->
+    <div class="tc-card" style="border-left: 4px solid var(--tc-success); text-align: center; padding: var(--tc-space-lg) var(--tc-space-md); margin-bottom: var(--tc-space-md);">
+        <div style="background-color: var(--tc-success); color: white; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto 0.65rem auto;" aria-hidden="true">
+            &#x2714;
+        </div>
+        <h2 style="font-size: 1.3rem; font-weight: 800; color: var(--tc-primary); margin-bottom: 0.35rem;">
+            Ready to Authorize with PayPal Sandbox
+        </h2>
+        <p class="tc-subtitle" style="font-size: 0.92rem;">
+            Your purchase approval is valid once until {{ approval.expires_at|date:"H:i" }} UTC.
+        </p>
+    </div>
+
+    <!-- Controlled Demo Payee Disclosure Banner -->
+    <div class="tc-card" style="background-color: var(--tc-success-bg); border: 1px solid var(--tc-success-border); font-size: 0.84rem; color: var(--tc-success-text); margin-bottom: var(--tc-space-md); padding: var(--tc-space-md);">
+        {{ demo_payee_disclosure }}
+    </div>
+
+    <!-- Approval Summary Card -->
+    <div class="tc-card">
+        <div class="tc-card-header">
+            <div>
+                <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--tc-primary);">Approved Purchase Details</h2>
+                <p class="tc-card-subtitle">These details cannot change before checkout.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span class="tc-badge tc-badge-success">{{ approval.state }}</span>
+                <span class="tc-badge tc-badge-outline">Single-Use</span>
+            </div>
+        </div>
+
+        <!-- Approved Parameters Grid -->
+        <div class="tc-grid-2" style="margin-bottom: var(--tc-space-md);">
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">Product</span>
+                <div style="font-size: 0.95rem; font-weight: 700; color: var(--tc-text); margin-top: 0.15rem;">{{ product.title }}</div>
+            </div>
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">Total Payable Amount</span>
+                <div style="font-size: 1.25rem; font-weight: 800; color: var(--tc-primary); margin-top: 0.15rem;">
+                    ${{ proposal.total_amount }} {{ proposal.currency }}
+                </div>
+            </div>
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">PayPal Demo Payee</span>
+                <div style="font-size: 0.9rem; font-weight: 700; margin-top: 0.15rem;"><code>{{ proposal.payee_id }}</code></div>
+            </div>
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">Valid Until (15 Minutes)</span>
+                <div style="font-size: 0.9rem; font-weight: 700; color: var(--tc-warning-text); margin-top: 0.15rem;">
+                    {{ approval.expires_at|date:"Y-m-d H:i:s" }} UTC
+                </div>
+            </div>
+        </div>
+
+        <!-- Checkout Action Panel -->
+        <div style="background: linear-gradient(135deg, #ffffff 0%, var(--tc-surface-subtle) 100%); border: 1px solid var(--tc-border); border-radius: var(--tc-radius-md); padding: var(--tc-space-md); margin-top: var(--tc-space-md);">
+            {% if approval.state == 'CONSUMED' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-primary); margin-bottom: 0.25rem;">Approval Token Consumed</h3>
+                    <p style="font-size: 0.85rem; color: var(--tc-text-muted);">
+                        This single-use approval token has already been consumed for PayPal checkout.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    {% if payment_order %}
+                    <a href="{% url 'payments:order_detail' payment_order.paypal_order_id %}" class="tc-btn tc-btn-paypal">
+                        View PayPal Order Receipt &rarr;
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-secondary">
+                        &larr; Back to Results
+                    </a>
+                    <a href="{% url 'home' %}" class="tc-btn tc-btn-outline">
+                        New Search
+                    </a>
+                </div>
+            </div>
+            {% elif is_expired or approval.state == 'EXPIRED' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-danger); margin-bottom: 0.25rem;">Approval Expired</h3>
+                    <p style="font-size: 0.85rem; color: var(--tc-text-muted);">
+                        The 15-minute checkout window for this purchase approval has expired.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-primary">
+                        Return to Results &rarr;
+                    </a>
+                    <a href="{% url 'home' %}" class="tc-btn tc-btn-outline">
+                        New Search
+                    </a>
+                </div>
+            </div>
+            {% elif approval.state == 'REJECTED' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-danger); margin-bottom: 0.25rem;">Approval Declined</h3>
+                    <p style="font-size: 0.85rem; color: var(--tc-text-muted);">
+                        This purchase summary was declined.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-secondary">
+                        &larr; Back to Results
+                    </a>
+                    <a href="{% url 'home' %}" class="tc-btn tc-btn-outline">
+                        New Search
+                    </a>
+                </div>
+            </div>
+            {% elif approval.state == 'VOIDED' or contract.state != 'CONFIRMED' or proposal.status == 'SUPERSEDED' %}
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-danger); margin-bottom: 0.25rem;">
+                        Approval Voided &mdash; Requirements Changed
+                    </h3>
+                    <p style="font-size: 0.85rem; color: var(--tc-text-muted);">
+                        Your shopping requirements were updated, so this earlier approval cannot initiate PayPal checkout. Review and confirm your updated plan first.
+                    </p>
+                </div>
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap;">
+                    {% if latest_contract %}
+                    <a href="{% url 'contract_review' latest_contract.public_ref %}" class="tc-btn tc-btn-primary">
+                        Review Plan v{{ latest_contract.version }} &rarr;
+                    </a>
+                    {% endif %}
+                    <a href="{% url 'home' %}" class="tc-btn tc-btn-outline">
+                        New Search
+                    </a>
+                </div>
+            </div>
+            {% elif approval.state == 'APPROVED' and not is_expired and contract.state == 'CONFIRMED' and proposal.status == 'APPROVED' %}
+            <div class="tc-approval-action-area">
+                <div>
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-primary); margin-bottom: 0.25rem;">
+                        Ready for PayPal Sandbox Checkout
+                    </h3>
+                    <p style="font-size: 0.85rem; color: var(--tc-text-muted);">
+                        Proceeding will redirect you to PayPal Sandbox to authorize payment.
+                    </p>
+                </div>
+                <div class="tc-approval-actions">
+                    <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-outline">
+                        &larr; Back to Results
+                    </a>
+                    <form method="post"
+                          action="{% url 'payments:checkout_initiate' approval.token %}"
+                          class="tc-approval-pay-form"
+                          data-loading-form
+                          data-loading-label="Connecting to PayPal Sandbox..."
+                          data-loading-title="Preparing PayPal Sandbox Checkout"
+                          data-loading-subtitle="Confirming your approval details and preparing test checkout."
+                          data-loading-steps="Verifying locked purchase details|Confirming checkout pass|Opening PayPal Sandbox">
+                        {% csrf_token %}
+                        <button type="submit" class="tc-btn tc-btn-paypal tc-btn-lg">
+                            Proceed to PayPal Sandbox Checkout &rarr;
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-danger); margin-bottom: 0.25rem;">
+                        Approval Not Ready for Checkout ({{ approval.state }})
+                    </h3>
+                    <p style="font-size: 0.85rem; color: var(--tc-text-muted);">
+                        Only an active, unexpired purchase approval on confirmed requirements can start PayPal checkout.
+                    </p>
+                </div>
+                <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-secondary">
+                    &larr; Back to Results
+                </a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

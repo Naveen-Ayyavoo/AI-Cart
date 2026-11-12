@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Review Product Warning — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">
+                {% if situation == 'UNVERIFIED_SPEC' %}
+                Review Unverified Product Details
+                {% else %}
+                Review Requirement Conflict
+                {% endif %}
+            </h1>
+            <p class="tc-page-intro-sub">
+                {% if situation == 'UNVERIFIED_SPEC' %}
+                AI Cart cannot confirm every requirement from the available seller details for this item.
+                {% else %}
+                This product conflicts with one or more rules in your confirmed shopping plan (Version {{ contract.version }}).
+                {% endif %}
+            </p>
+        </div>
+        <div class="tc-page-intro-actions">
+            <a href="{% url 'contract_discovery' contract.public_ref %}" class="tc-btn tc-btn-secondary tc-btn-sm">&larr; Back to Matching Products</a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="tc-messages" role="alert">
+        {% for message in messages %}
+        <div class="tc-alert tc-alert-{{ message.tags }}">{{ message }}</div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div class="tc-confirm-layout">
+        <div class="tc-confirm-stack">
+            <!-- Selected Product Summary -->
+            <section class="tc-card" aria-labelledby="ba-product-heading">
+                <div style="display: flex; gap: 1.1rem; align-items: flex-start; flex-wrap: wrap;">
+                    <div class="tc-eval-media tc-eval-media-square" style="width: 110px; flex-shrink: 0;">
+                        {% if image_url %}
+                        <img src="{{ image_url }}" alt="{{ product.title }}" onerror="this.hidden=true; if (this.nextElementSibling) { this.nextElementSibling.hidden=false; }">
+                        <div class="tc-eval-fallback" hidden aria-hidden="true"><span>No image</span></div>
+                        {% else %}
+                        <div class="tc-eval-fallback" aria-hidden="true"><span>No image</span></div>
+                        {% endif %}
+                    </div>
+                    <div style="flex: 1; min-width: 220px;">
+                        {% if product.brand %}
+                        <div style="font-size: 0.72rem; font-weight: 700; color: var(--tc-accent); text-transform: uppercase;">{{ product.brand }}</div>
+                        {% endif %}
+                        <h2 id="ba-product-heading" class="tc-decision-title" style="margin-bottom: 0.35rem;">{{ product.title }}</h2>
+                        <div style="font-size: 1.25rem; font-weight: 800; color: var(--tc-primary);">
+                            ${{ eval_res.total_item_price }} {{ contract.currency }}
+                            <span style="font-size: 0.8125rem; font-weight: 500; color: var(--tc-text-muted);">
+                                (Items subtotal: ${{ product.price }} &times; {{ eval_res.quantity }} &bull; Shipping &amp; tax unconfirmed)
+                            </span>
+                        </div>
+                        <div style="margin-top: 0.4rem; font-size: 0.85rem; color: var(--tc-text-muted);">
+                            Seller: <strong>{{ product.source_merchant }}</strong> &bull;
+                            {% if situation == 'UNVERIFIED_SPEC' %}
+                            <span class="tc-badge tc-badge-warning">Needs verification</span>
+                            {% else %}
+                            <span class="tc-badge tc-badge-danger">Conflicts with requirements</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Exact Policy Findings -->
+            {% if non_overridable_reasons %}
+            <section class="tc-card" style="border-left: 4px solid var(--tc-danger); background: var(--tc-danger-bg);" aria-labelledby="ba-blocked-heading">
+                <h2 id="ba-blocked-heading" class="tc-decision-title" style="color: var(--tc-danger-text);">Item Unavailable for Checkout</h2>
+                <ul class="tc-prose" style="padding-left: 1.2rem; color: var(--tc-danger-text); line-height: 1.55;">
+                    {% for r in non_overridable_reasons %}
+                    <li>{{ r }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if unverified_items %}
+            <section class="tc-card" style="border-left: 4px solid var(--tc-warning); background: var(--tc-warning-bg);" aria-labelledby="ba-unverified-heading">
+                <h2 id="ba-unverified-heading" class="tc-decision-title" style="color: var(--tc-warning-text);">What Could Not Be Verified</h2>
+                <ul class="tc-prose" style="padding-left: 1.2rem; color: var(--tc-warning-text); line-height: 1.55; margin: 0;">
+                    {% for u in unverified_items %}
+                    <li style="margin-bottom: 0.4rem;"><strong>{{ u.title }}:</strong> {{ u.detail }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+
+            {% if conflict_items %}
+            <section class="tc-card" style="border-left: 4px solid var(--tc-danger); background: var(--tc-danger-bg);" aria-labelledby="ba-conflict-heading">
+                <h2 id="ba-conflict-heading" class="tc-decision-title" style="color: var(--tc-danger-text);">Conflicting Requirements</h2>
+                <ul class="tc-prose" style="padding-left: 1.2rem; color: var(--tc-danger-text); line-height: 1.55; margin: 0;">
+                    {% for c in conflict_items %}
+                    <li style="margin-bottom: 0.4rem;"><strong>{{ c.title }}:</strong> {{ c.detail }}</li>
+                    {% endfor %}
+                </ul>
+            </section>
+            {% endif %}
+        </div>
+
+        <aside class="tc-confirm-aside">
+            <section class="tc-card" aria-labelledby="ba-action-heading">
+                <h2 id="ba-action-heading" class="tc-decision-title">Proceed Safely with Your Choice</h2>
+                {% if can_revise_and_proceed %}
+                <p class="tc-prose" style="font-size: 0.9rem; color: var(--tc-text-muted); line-height: 1.5; margin-bottom: 0.9rem;">
+                    AI Cart never bypasses confirmed requirements silently or triggers direct checkout from this warning. To proceed with this product, AI Cart will prepare an updated draft plan (Version {{ contract.version|add:1 }}) for your explicit review and confirmation:
+                </p>
+
+                {% if proposed_changes %}
+                <div style="background: var(--tc-surface-subtle); border: 1px solid var(--tc-border); border-radius: var(--tc-radius-md); padding: 0.75rem 0.9rem; margin-bottom: 1rem;">
+                    <div style="font-size: 0.75rem; font-weight: 700; text-transform: uppercase; color: var(--tc-text-muted); margin-bottom: 0.35rem;">Changes to prepare in Draft v{{ contract.version|add:1 }}</div>
+                    <ul style="margin: 0; padding-left: 1.15rem; font-size: 0.875rem; color: var(--tc-primary); line-height: 1.5;">
+                        {% for chg in proposed_changes %}
+                        <li>{{ chg }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+
+                <form method="POST" action="{% url 'contract_buy_anyway' contract.public_ref product.product_id %}" data-loading-form data-loading-label="Preparing updated plan...">
+                    {% csrf_token %}
+                    <div style="display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.15rem;">
+                        <div style="display: flex; align-items: flex-start; gap: 0.6rem;">
+                            <input type="checkbox" id="id_ack_risk" name="acknowledge_risk" class="tc-clarify-req-check" required>
+                            <label for="id_ack_risk" style="font-size: 0.875rem; color: var(--tc-text); cursor: pointer; line-height: 1.45;">
+                                {% if situation == 'UNVERIFIED_SPEC' %}
+                                I understand AI Cart has not verified the feature(s) above and cannot guarantee this product meets them.
+                                {% else %}
+                                I have reviewed the requirement conflict(s) above and still want to consider this product.
+                                {% endif %}
+                            </label>
+                        </div>
+                        <div style="display: flex; align-items: flex-start; gap: 0.6rem;">
+                            <input type="checkbox" id="id_ack_rev" name="acknowledge_revision" class="tc-clarify-req-check" required>
+                            <label for="id_ack_rev" style="font-size: 0.875rem; color: var(--tc-text); cursor: pointer; line-height: 1.45;">
+                                Prepare Draft Version {{ contract.version|add:1 }} so I can review, confirm, and re-check eligibility before any purchase summary or PayPal checkout.
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="tc-actions" style="flex-direction: column; align-items: stretch;">
+                        <button type="submit" class="tc-btn tc-btn-primary" style="justify-content: center;">
+                            Prepare Updated Plan (Draft v{{ contract.version|add:1 }}) &rarr;
+                        </button>
+                        <a href="{% url 'contract_discovery' contract.public_ref %}" class="tc-btn tc-btn-outline" style="justify-content: center;">
+                            Keep Original Plan &amp; Go Back
+                        </a>
+                    </div>
+                </form>
+                {% else %}
+                <p class="tc-prose" style="font-size: 0.9rem; color: var(--tc-text-muted); line-height: 1.5;">
+                    This item cannot proceed because stock, USD pricing, or verifiable pricing rules cannot be overridden. Return to matching products to select an available item.
+                </p>
+                <a href="{% url 'contract_discovery' contract.public_ref %}" class="tc-btn tc-btn-secondary" style="margin-top: 0.75rem;">
+                    &larr; Back to Matching Products
+                </a>
+                {% endif %}
+            </section>
+        </aside>
+    </div>
+</div>
+{% endblock %}
+

@@ -1,0 +1,20 @@
+{
+  "graphify-maintenance": {
+    "enabled": true,
+    "PreInvocation": [
+      {
+        "type": "command",
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $s = if (Test-Path 'scripts/graphify-auto.ps1') { 'scripts/graphify-auto.ps1' } else { '.agents/scripts/graphify-auto.ps1' }; & $s -Event PreInvocation }\"",
+        "timeout": 60
+      }
+    ],
+    "Stop": [
+      {
+        "type": "command",
+        "command": "powershell.exe -NoProfile -ExecutionPolicy Bypass -Command \"& { $s = if (Test-Path 'scripts/graphify-auto.ps1') { 'scripts/graphify-auto.ps1' } else { '.agents/scripts/graphify-auto.ps1' }; & $s -Event Stop }\"",
+        "timeout": 60
+      }
+    ]
+  }
+}
+

@@ -43,6 +43,14 @@ venv.bak/
 .agents/gsd-install-state.json
 .agents/gsd-migration-journal/
 .agents/.gsd-staging/
+# Third-party local design intelligence skills (not part of release bundle)
+.agents/skills/banner-design/
+.agents/skills/brand/
+.agents/skills/design-system/
+.agents/skills/design/
+.agents/skills/slides/
+.agents/skills/ui-styling/
+.agents/skills/ui-ux-pro-max/
 
 # Django specific
 *.log
@@ -88,4 +96,8 @@ Desktop.ini
 # Antigravity artifacts & transcripts
 brain/
 scratch/
+
+# Graphify baseline output
+graphify-out/
+.graphify-runtime/
 

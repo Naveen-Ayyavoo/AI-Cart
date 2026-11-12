@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Payment History — AI Cart{% endblock %}
+
+{% block extra_head %}
+<style>
+    @media (max-width: 768px) {
+        .tc-history-table thead {
+            display: none;
+        }
+        .tc-history-table,
+        .tc-history-table tbody,
+        .tc-history-table tr,
+        .tc-history-table td {
+            display: block;
+            width: 100%;
+        }
+        .tc-history-table tr {
+            border: 1px solid var(--tc-border);
+            border-radius: var(--tc-radius-md);
+            padding: 0.85rem;
+            margin-bottom: 0.75rem;
+            background: #ffffff;
+        }
+        .tc-history-table td {
+            border: 0;
+            padding: 0.3rem 0;
+            text-align: left !important;
+            white-space: normal !important;
+        }
+        .tc-history-table td[data-label]::before {
+            content: attr(data-label) ": ";
+            font-weight: 600;
+            font-size: 0.78rem;
+            color: var(--tc-text-muted);
+            text-transform: uppercase;
+            margin-right: 0.35rem;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Payment History</h1>
+            <p class="tc-page-intro-sub">
+                Persisted PayPal Sandbox transactions from your current shopping session. Incomplete or failed attempts are never shown as paid.
+            </p>
+        </div>
+        <div class="tc-page-intro-actions tc-action-bar">
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-primary tc-btn-sm">Start New Search &rarr;</a>
+        </div>
+    </div>
+
+    <div class="tc-card" style="margin-bottom: var(--tc-space-md);">
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-bottom: var(--tc-space-md);">
+            <strong style="font-size: 0.95rem; color: var(--tc-primary);">Filter by status:</strong>
+            <div style="display: flex; gap: 0.45rem; flex-wrap: wrap;" role="group" aria-label="Filter transactions by status">
+                <a href="{% url 'payments:history' %}" class="tc-btn tc-btn-xs {% if status_filter == 'ALL' %}tc-btn-primary{% else %}tc-btn-outline{% endif %}">All</a>
+                <a href="?status=COMPLETED" class="tc-btn tc-btn-xs {% if status_filter == 'COMPLETED' %}tc-btn-primary{% else %}tc-btn-outline{% endif %}">Completed</a>
+                <a href="?status=PENDING" class="tc-btn tc-btn-xs {% if status_filter == 'PENDING' %}tc-btn-primary{% else %}tc-btn-outline{% endif %}">Pending</a>
+                <a href="?status=FAILED" class="tc-btn tc-btn-xs {% if status_filter == 'FAILED' %}tc-btn-primary{% else %}tc-btn-outline{% endif %}">Failed</a>
+                <a href="?status=CANCELLED" class="tc-btn tc-btn-xs {% if status_filter == 'CANCELLED' %}tc-btn-primary{% else %}tc-btn-outline{% endif %}">Cancelled</a>
+                <a href="?status=REFUNDED" class="tc-btn tc-btn-xs {% if status_filter == 'REFUNDED' %}tc-btn-primary{% else %}tc-btn-outline{% endif %}">Refunded</a>
+            </div>
+        </div>
+
+        {% if history_rows %}
+        <table class="tc-table tc-history-table">
+            <thead>
+                <tr>
+                    <th scope="col">Product</th>
+                    <th scope="col">Date (UTC)</th>
+                    <th scope="col">Amount</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" style="text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in history_rows %}
+                <tr>
+                    <td>
+                        <strong style="color: var(--tc-primary); display: block;">{{ row.product_title }}</strong>
+                        <span style="font-size: 0.78rem; color: var(--tc-text-muted);">
+                            {% if row.merchant_name %}{{ row.merchant_name }} &bull; {% endif %}
+                            Order <code>{{ row.order.paypal_order_id }}</code>
+                        </span>
+                    </td>
+                    <td data-label="Date (UTC)" style="white-space: nowrap;">
+                        {{ row.order.created_at|date:"Y-m-d H:i" }}
+                    </td>
+                    <td data-label="Amount" style="white-space: nowrap; font-weight: 700;">
+                        ${{ row.order.total_amount }} {{ row.order.currency }}
+                    </td>
+                    <td data-label="Status">
+                        <span class="tc-badge {{ row.badge_class }}">{{ row.status_label }}</span>
+                    </td>
+                    <td style="text-align: right; white-space: nowrap;">
+                        {% if row.has_receipt %}
+                        <a href="{{ row.detail_url }}" class="tc-btn tc-btn-outline tc-btn-xs">
+                            View Receipt<span class="visually-hidden"> for {{ row.product_title }} ({{ row.order.paypal_order_id }})</span>
+                        </a>
+                        {% else %}
+                        <a href="{{ row.detail_url }}" class="tc-btn tc-btn-outline tc-btn-xs">
+                            View Details<span class="visually-hidden"> for {{ row.product_title }} ({{ row.order.paypal_order_id }})</span>
+                        </a>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div style="text-align: center; padding: 2.25rem 1rem;">
+            <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--tc-primary); margin-bottom: 0.4rem;">
+                No transactions found{% if status_filter != 'ALL' %} matching "{{ status_filter|title }}"{% endif %}
+            </h2>
+            <p class="tc-card-subtitle" style="margin-bottom: 1.25rem;">
+                Real PayPal Sandbox checkout records created in this session appear here automatically.
+            </p>
+            <div style="display: flex; gap: 0.65rem; justify-content: flex-end; flex-wrap: wrap;">
+                {% if status_filter != 'ALL' %}
+                <a href="{% url 'payments:history' %}" class="tc-btn tc-btn-outline tc-btn-sm">Show All Transactions</a>
+                {% endif %}
+                <a href="{% url 'home' %}" class="tc-btn tc-btn-primary tc-btn-sm">Start Shopping &rarr;</a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="tc-alert tc-alert-info" style="font-size: 0.8125rem;">
+        <div>{{ demo_payee_disclosure }}</div>
+    </div>
+</div>
+{% endblock %}

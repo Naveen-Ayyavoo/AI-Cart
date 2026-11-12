@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32" fill="none">
+    <title>AI Cart Favicon</title>
+    <defs>
+        <linearGradient id="ai-fav-spark" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#38BDF8"/>
+            <stop offset="100%" stop-color="#818CF8"/>
+        </linearGradient>
+    </defs>
+    <!-- Background Squircle -->
+    <rect width="32" height="32" rx="7" fill="#0F172A"/>
+
+    <!-- Shopping Cart Frame -->
+    <path d="M 6 9 L 9 9 L 12 21 L 24 21 L 27 13 L 10.5 13"
+          stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+
+    <!-- Wheels -->
+    <circle cx="13" cy="25" r="2" fill="#059669"/>
+    <circle cx="23" cy="25" r="2" fill="#059669"/>
+
+    <!-- Intelligence Spark -->
+    <path d="M 19 5 Q 19 9.5 14.5 9.5 Q 19 9.5 19 14 Q 19 9.5 23.5 9.5 Q 19 9.5 19 5 Z"
+          fill="url(#ai-fav-spark)"/>
+    <circle cx="19" cy="9.5" r="1" fill="#FFFFFF"/>
+</svg>
+

@@ -1,0 +1,749 @@
+{% extends "base.html" %}
+
+{% block title %}Review Your Shopping Requirements (v{{ contract.version }}) — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Review Your Shopping Requirements</h1>
+            <p class="tc-page-intro-sub">
+                Check the product details, item budget limit, and quantity below before searching for matching products.
+            </p>
+        </div>
+    </div>
+
+    {% if is_parse_fallback %}
+    <div class="tc-alert tc-alert-fallback" role="status" id="parse-fallback-banner">
+        <div style="font-size: 1.2rem;" aria-hidden="true">&#x26A0;</div>
+        <div style="flex: 1; min-width: 0;">
+            <strong>Direct Request Summary (AI interpretation unavailable):</strong>
+            We preserved your exact prompt and extracted only the clear constraints we recognized &mdash; no unrelated sample product was substituted. Review or edit any detail below before confirming.
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.6rem;">
+                <form method="POST" action="{% url 'contract_retry_parse' contract.public_ref %}" style="display: inline;" data-loading-form data-loading-label="Retrying AI interpretation...">
+                    {% csrf_token %}
+                    <button type="submit" class="tc-btn tc-btn-outline tc-btn-xs" id="retry-ai-parse-btn">Retry AI Interpretation</button>
+                </form>
+                <button type="button" class="tc-btn tc-btn-outline tc-btn-xs" onclick="toggleEditPanel()">Edit Criteria</button>
+            </div>
+        </div>
+    </div>
+    {% elif is_demo_sample %}
+    <div class="tc-alert tc-alert-info" role="status" id="demo-sample-banner">
+        <div style="font-size: 1.2rem;" aria-hidden="true">&#x2139;</div>
+        <div>
+            <strong>Sample Shopping Plan:</strong>
+            Prepared from the demonstration scenario you chose. You can edit any detail below before confirming.
+        </div>
+    </div>
+    {% endif %}
+
+    {% if contradictions %}
+    <div class="tc-alert tc-alert-danger" role="alert" id="contract-contradictions-banner">
+        <div style="font-size: 1.2rem;" aria-hidden="true">&#x26D4;</div>
+        <div style="flex: 1; min-width: 0;">
+            <strong>Requirements conflict detected &mdash; confirmation blocked until resolved:</strong>
+            <ul style="margin: 0.35rem 0 0 1.2rem; padding: 0;">
+                {% for issue in contradictions %}
+                <li>{{ issue }}</li>
+                {% endfor %}
+            </ul>
+            <div style="margin-top: 0.6rem;">
+                <button type="button" class="tc-btn tc-btn-outline tc-btn-xs" onclick="toggleEditPanel()">Fix via Edit Criteria</button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if messages %}
+    <div class="tc-messages" role="alert">
+        {% for message in messages %}
+        <div class="tc-alert tc-alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if last_revision and contract.parent_contract or buy_anyway_ack %}
+    <div class="tc-alert tc-alert-info" role="status" id="revision-diff-banner">
+        <div style="font-size: 1.2rem;" aria-hidden="true">&#x2139;</div>
+        <div>
+            {% if buy_anyway_ack %}
+            <strong>Updated Plan for {{ buy_anyway_ack.product_title }} (Version {{ contract.version }} &mdash; {{ contract.state }}):</strong>
+            Created from Version {{ last_revision.previous_version|default:contract.version }} so you can review and reconfirm before continuing{% if buy_anyway_ack.merchant_name %} ({{ buy_anyway_ack.merchant_name }}, ${{ buy_anyway_ack.unit_price }} {{ buy_anyway_ack.currency }}){% endif %}.
+            {% else %}
+            <strong>Proposed Revision (Version {{ contract.version }} &mdash; {{ contract.state }}):</strong>
+            Created from Version {{ last_revision.previous_version }} (preserved cleanly in history).
+            {% endif %}
+            {% if last_revision and last_revision.previous_budget != last_revision.new_budget %}
+            <div style="margin-top: 0.25rem;">
+                Original Budget (v{{ last_revision.previous_version }}): <strong>${{ last_revision.previous_budget }} {{ contract.currency }}</strong>
+                &rarr;
+                Revised Budget (v{{ contract.version }}): <strong>${{ last_revision.new_budget }} {{ contract.currency }}</strong>.
+            </div>
+            {% endif %}
+            <div style="margin-top: 0.2rem; font-size: 0.8125rem;">
+                Confirming this version updates your shopping criteria only &mdash; it does not authorize payment.
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Primary Shopping Brief (Human-Readable AI Interpretation) -->
+    <div class="tc-card tc-brief-card" id="brief-view-card">
+        <div class="tc-card-header">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.35rem; flex-wrap: wrap;">
+                    <span class="tc-badge tc-badge-primary">Shopping Plan</span>
+                    <span class="tc-badge tc-badge-spec">Version {{ contract.version }}</span>
+                    {% if contract.state == 'CONFIRMED' %}
+                    <span class="tc-badge tc-badge-confirmed">CONFIRMED</span>
+                    {% else %}
+                    <span class="tc-badge tc-badge-pref">{{ contract.state }}</span>
+                    {% endif %}
+                </div>
+                <h2 style="font-size: 1.3rem; font-weight: 800; color: var(--tc-primary);">
+                    Essential Purchase Requirements
+                </h2>
+                <p class="tc-card-subtitle">
+                    AI Cart organized these requirements from your request. Review or refine anything below before continuing.
+                </p>
+            </div>
+        </div>
+
+        <div class="tc-original-prompt-box">
+            <span class="tc-prompt-label">Your Request:</span>
+            <p class="tc-prompt-quote">&ldquo;{{ contract.raw_prompt }}&rdquo;</p>
+        </div>
+
+        <!-- Structured Brief Highlights -->
+        <div class="tc-brief-grid">
+            <div class="tc-brief-cell">
+                <span class="tc-brief-label">Product Sought</span>
+                <span class="tc-brief-value">{{ contract.product_description }}</span>
+                <span class="tc-brief-sub">Category: {{ contract.category }} &bull; Quantity: {{ contract.quantity }}</span>
+            </div>
+
+            <div class="tc-brief-cell">
+                <span class="tc-brief-label">Budget Limit</span>
+                <span class="tc-brief-value tc-brief-price">${{ contract.max_budget }} {{ contract.currency }}</span>
+                {% if last_revision and last_revision.previous_budget != last_revision.new_budget %}
+                <span class="tc-brief-sub">Revised from v{{ last_revision.previous_version }} (${{ last_revision.previous_budget }}) &bull; Strict item ceiling</span>
+                {% else %}
+                <span class="tc-brief-sub">Strict item ceiling &mdash; items exceeding this fail closed</span>
+                {% endif %}
+            </div>
+
+            <div class="tc-brief-cell">
+                <span class="tc-brief-label">Required Specifications (Must-Have)</span>
+                <div class="tc-badge-list" style="margin-top: 0.35rem;">
+                    {% for spec in display_required_specs %}
+                    <span class="tc-badge tc-badge-spec">
+                        <strong>{{ spec.label }}:</strong>&nbsp;{{ spec.value }}
+                    </span>
+                    {% empty %}
+                    <span style="font-size: 0.85rem; color: var(--tc-text-muted);">No hard technical specifications locked.</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="tc-brief-cell">
+                <span class="tc-brief-label">Preferred Specifications (Optional)</span>
+                <div class="tc-badge-list" style="margin-top: 0.35rem;">
+                    {% for spec in display_preferred_specs %}
+                    <span class="tc-badge tc-badge-pref">
+                        <strong>{{ spec.label }}:</strong>&nbsp;{{ spec.value }}
+                    </span>
+                    {% empty %}
+                    <span style="font-size: 0.85rem; color: var(--tc-text-muted);">No optional preferences set yet.</span>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if contract.excluded_terms %}
+            <div class="tc-brief-cell tc-brief-cell-full">
+                <span class="tc-brief-label">What to exclude</span>
+                <div class="tc-badge-list" style="margin-top: 0.35rem;">
+                    {% for term in contract.excluded_terms %}
+                    <span class="tc-badge tc-badge-danger">
+                        &times; {{ term }}
+                    </span>
+                    {% endfor %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Secondary Category-Aware Optional Clarifications -->
+        {% if clarification_fields and contract.state != 'SUPERSEDED' %}
+        <section class="tc-card" style="background: var(--tc-surface-subtle); border: 1px solid var(--tc-border); padding: 1rem 1.15rem; margin-bottom: var(--tc-space-lg); box-shadow: none;" aria-labelledby="clarify-heading">
+            <div style="margin-bottom: 0.75rem;">
+                <h2 id="clarify-heading" style="font-size: 1rem; font-weight: 700; color: var(--tc-primary); margin: 0;">
+                    Optional details to improve your results
+                </h2>
+                <p style="font-size: 0.84rem; color: var(--tc-text-muted); margin: 0.2rem 0 0 0;">
+                    Leave any field blank if you do not mind. Choices here help rank results without excluding options unless marked strict.
+                </p>
+            </div>
+
+            <form method="POST"
+                  action="{% url 'contract_clarify' contract.public_ref %}"
+                  id="optional-clarify-form"
+                  data-loading-form
+                  data-loading-label="Saving optional details...">
+                {% csrf_token %}
+                <div class="tc-grid-2" style="gap: 0.85rem;">
+                    {% for cf in clarification_fields %}
+                    <div class="tc-form-group" style="background: #ffffff; border: 1px solid var(--tc-border); border-radius: var(--tc-radius); padding: 0.75rem 0.85rem; margin-bottom: 0;">
+                        <input type="hidden" name="clarify_present__{{ cf.key }}" value="1">
+                        <label class="tc-label" for="{{ cf.input_id }}" style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; font-size: 0.875rem;">
+                            <span>{{ cf.label }} <span style="font-weight: 400; color: var(--tc-text-muted);">(optional)</span></span>
+                            {% if cf.is_resolved %}
+                            <span class="tc-badge tc-badge-success" style="font-size: 0.7rem;">Added</span>
+                            {% endif %}
+                        </label>
+
+                        {% if cf.control_type == 'select' %}
+                        <select id="{{ cf.input_id }}"
+                                name="{{ cf.field_name }}"
+                                class="tc-input tc-clarify-input"
+                                data-clarify-key="{{ cf.key }}"
+                                aria-describedby="{{ cf.input_id }}_hint">
+                            <option value="">-- Skip / No preference --</option>
+                            {% for opt in cf.options %}
+                            <option value="{{ opt }}" {% if cf.select_value == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                        <div id="{{ cf.input_id }}_custom_wrap" style="margin-top: 0.5rem; {% if cf.select_value != 'Other' %}display: none;{% endif %}">
+                            <label class="tc-label" for="{{ cf.input_id }}_custom" style="font-size: 0.8rem;">Custom {{ cf.label }}</label>
+                            <input type="text"
+                                   id="{{ cf.input_id }}_custom"
+                                   name="{{ cf.custom_field_name }}"
+                                   value="{{ cf.custom_value }}"
+                                   maxlength="120"
+                                   placeholder="Describe your preferred {{ cf.label|lower }}"
+                                   class="tc-input tc-clarify-custom">
+                        </div>
+
+                        {% elif cf.control_type == 'number' %}
+                        <div style="display: flex; align-items: center; gap: 0.5rem;">
+                            <input type="number"
+                                   id="{{ cf.input_id }}"
+                                   name="{{ cf.field_name }}"
+                                   value="{{ cf.current_value|cut:cf.unit|cut:' ' }}"
+                                   min="{{ cf.min }}"
+                                   max="{{ cf.max }}"
+                                   step="{{ cf.step }}"
+                                   placeholder="{{ cf.placeholder }}"
+                                   class="tc-input tc-clarify-input"
+                                   data-clarify-key="{{ cf.key }}"
+                                   aria-describedby="{{ cf.input_id }}_hint">
+                            {% if cf.unit %}
+                            <span class="tc-badge tc-badge-outline" style="white-space: nowrap;">{{ cf.unit }}</span>
+                            {% endif %}
+                        </div>
+
+                        {% else %}
+                        <input type="text"
+                               id="{{ cf.input_id }}"
+                               name="{{ cf.field_name }}"
+                               value="{{ cf.current_value }}"
+                               maxlength="120"
+                               placeholder="{{ cf.placeholder }}"
+                               class="tc-input tc-clarify-input"
+                               data-clarify-key="{{ cf.key }}"
+                               aria-describedby="{{ cf.input_id }}_hint">
+                        {% endif %}
+
+                        <span class="tc-hint" id="{{ cf.input_id }}_hint">{{ cf.help_text }}</span>
+
+                        {% if clarification_errors %}
+                            {% for err_k, err_v in clarification_errors.items %}
+                                {% if err_k == cf.key %}
+                                <div class="tc-field-error" role="alert">{{ err_v }}</div>
+                                {% endif %}
+                            {% endfor %}
+                        {% endif %}
+
+                        <div style="display: inline-flex; align-items: center; gap: 0.55rem; margin-top: 0.5rem; min-height: 28px;">
+                            <input type="checkbox"
+                                   id="clarify_req_{{ cf.key }}"
+                                   name="{{ cf.requirement_toggle_name }}"
+                                   class="tc-clarify-req-check"
+                                   data-clarify-key="{{ cf.key }}"
+                                   {% if cf.is_required_spec %}checked{% endif %}>
+                            <label for="clarify_req_{{ cf.key }}" style="font-size: 0.8rem; color: var(--tc-text-muted); cursor: pointer;">
+                                Require <strong>{{ cf.label|lower }}</strong> as a strict dealbreaker
+                            </label>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+
+                <div style="display: flex; gap: 0.75rem; align-items: center; flex-wrap: wrap; margin-top: 0.75rem;">
+                    <button type="submit" class="tc-btn tc-btn-secondary tc-btn-sm">
+                        Save Optional Details
+                    </button>
+                </div>
+            </form>
+        </section>
+        {% endif %}
+
+        <!-- Primary Action Area (Primary next step aligned right) -->
+        <div class="tc-brief-cta-row tc-action-bar">
+            {% if contract.state == 'CONFIRMED' %}
+            <button type="button" class="tc-btn tc-btn-outline" id="toggle-edit-btn" aria-expanded="false" aria-controls="edit-criteria-panel" onclick="toggleEditPanel()">
+                Edit Criteria
+            </button>
+            <a href="{% url 'contract_discovery' contract.public_ref %}"
+               class="tc-btn tc-btn-primary tc-btn-lg"
+               data-loading-link
+               data-loading-label="Searching Channel3..."
+               data-loading-title="Searching Channel3 product catalogue"
+               data-loading-subtitle="Searching Channel3's product catalogue and retrieving product details before checking requirements."
+               data-loading-steps="Searching Channel3's product catalogue|Retrieving product details and availability|Checking matches against your requirements">
+                Find Matching Products &rarr;
+            </a>
+            {% elif contract.state == 'SUPERSEDED' %}
+            <span class="tc-badge tc-badge-outline">Previous Version (Read-Only)</span>
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-primary">Start New Search &rarr;</a>
+            {% else %}
+            <button type="button" class="tc-btn tc-btn-outline" id="toggle-edit-btn" aria-expanded="false" aria-controls="edit-criteria-panel" onclick="toggleEditPanel()">
+                Edit Criteria
+            </button>
+            <form method="POST"
+                  action="{% url 'contract_confirm' contract.public_ref %}"
+                  id="confirm-contract-form"
+                  style="display: inline-flex;"
+                  data-loading-form
+                  data-loading-label="Confirming requirements...">
+                {% csrf_token %}
+                <div id="confirm-clarify-sync" hidden></div>
+                <button type="submit"
+                        class="tc-btn tc-btn-primary tc-btn-lg"
+                        id="confirm-criteria-btn"
+                        {% if contradictions %}disabled title="Resolve conflicting requirements before confirming"{% endif %}>
+                    <span>Confirm Requirements</span>
+                    <span aria-hidden="true">&rarr;</span>
+                </button>
+            </form>
+            {% endif %}
+        </div>
+
+        <!-- Non-Payment Authorization Notice -->
+        <div class="tc-non-payment-notice">
+            <span style="font-size: 1.1rem; color: var(--tc-accent);" aria-hidden="true">&#x2139;</span>
+            <p>
+                <strong>Notice:</strong> Confirming this contract locks your purchase requirements for product comparison and policy verification. <strong>It does NOT charge your account, reserve funds, or authorize payment.</strong> Purchase approval and payment authorization occur in separate, explicit steps before checkout.
+            </p>
+        </div>
+    </div>
+
+    <!-- Product-Specific Edit Search Criteria Panel (Defect 7 Fix) -->
+    <div class="tc-card" id="edit-criteria-panel" style="display: none; border-top: 3px solid var(--tc-accent);" role="region" aria-label="Edit Search Criteria">
+        <div class="tc-card-header">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; flex-wrap: wrap;">
+                    <span class="tc-badge tc-badge-spec">{{ edit_metadata.profile_label }}</span>
+                </div>
+                <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--tc-primary);">
+                    Edit Search Criteria
+                </h2>
+                <p class="tc-card-subtitle">
+                    Tailored to <strong>{{ contract.category }}</strong>.
+                    {% if contract.state == 'CONFIRMED' %}
+                    Saving creates a new Draft version (v{{ contract.version|add:1 }}) and preserves Version {{ contract.version }} unchanged.
+                    {% else %}
+                    Adjust exact budget, quantity, mandatory requirements, optional preferences, or exclusions.
+                    {% endif %}
+                </p>
+            </div>
+            <button type="button" class="tc-btn tc-btn-outline tc-btn-xs" onclick="toggleEditPanel()">
+                &times; Close Editor
+            </button>
+        </div>
+
+        <form method="POST"
+              action="{% url 'contract_update' contract.public_ref %}"
+              id="contract-edit-form"
+              data-loading-form
+              data-loading-label="Saving criteria...">
+            {% csrf_token %}
+
+            <div class="tc-grid-2">
+                <div class="tc-form-group">
+                    <label class="tc-label" for="id_category">Target Product Category</label>
+                    {{ form.category }}
+                    {% if form.category.errors %}<div class="tc-field-error">{{ form.category.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <div class="tc-form-group">
+                    <label class="tc-label" for="id_quantity">Quantity</label>
+                    {{ form.quantity }}
+                    {% if form.quantity.errors %}<div class="tc-field-error">{{ form.quantity.errors|striptags }}</div>{% endif %}
+                </div>
+            </div>
+
+            <div class="tc-form-group">
+                <label class="tc-label" for="id_product_description">Product Description</label>
+                {{ form.product_description }}
+                {% if form.product_description.errors %}<div class="tc-field-error">{{ form.product_description.errors|striptags }}</div>{% endif %}
+            </div>
+
+            <div class="tc-grid-2">
+                <div class="tc-form-group">
+                    <label class="tc-label" for="id_max_budget">Maximum Budget Ceiling (USD)</label>
+                    <div class="tc-input-prefix-wrapper">
+                        <span class="tc-input-prefix" aria-hidden="true">$</span>
+                        {{ form.max_budget }}
+                    </div>
+                    <span class="tc-hint">Strict item budget ceiling. Products exceeding this limit fail closed.</span>
+                    {% if form.max_budget.errors %}<div class="tc-field-error">{{ form.max_budget.errors|striptags }}</div>{% endif %}
+                </div>
+
+                <div class="tc-form-group">
+                    <label class="tc-label" for="id_currency">Currency</label>
+                    {{ form.currency }}
+                    <span class="tc-hint">Locked to USD for PayPal Sandbox demonstration.</span>
+                </div>
+            </div>
+
+            <!-- Category-Specific Quick Attribute Suggestions -->
+            {% if edit_metadata.recommended_attributes %}
+            <div style="margin-top: var(--tc-space-sm); margin-bottom: var(--tc-space-md); padding: 0.85rem; background: var(--tc-surface-subtle); border-radius: var(--tc-radius-md); border: 1px solid var(--tc-border);">
+                <div style="font-size: 0.8125rem; font-weight: 700; color: var(--tc-primary); margin-bottom: 0.4rem;">
+                    Suggested attributes for {{ edit_metadata.profile_label }}:
+                </div>
+                <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+                    {% for attr in edit_metadata.recommended_attributes %}
+                    <div style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+                        <span style="font-size: 0.775rem; font-weight: 600; color: var(--tc-text-muted); min-width: 90px;">{{ attr.label }}:</span>
+                        {% for sug in attr.suggestions %}
+                        <button type="button"
+                                class="tc-btn tc-btn-outline tc-btn-xs"
+                                onclick="quickAddAttribute('preferred', '{{ attr.key|escapejs }}', '{{ sug|escapejs }}')"
+                                title="Add {{ attr.label }}: {{ sug }} as optional preference">
+                            + {{ sug }}
+                        </button>
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+                <span class="tc-hint">Clicking a suggestion adds it as an optional preference. You can promote any attribute to a strict requirement below.</span>
+            </div>
+            {% endif %}
+
+            <!-- Required Specifications -->
+            <div style="margin-top: var(--tc-space-md); margin-bottom: var(--tc-space-md); padding-top: var(--tc-space-md); border-top: 1px solid var(--tc-border);">
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--tc-primary);">Required Specifications (Non-Negotiable)</h3>
+                <div id="required-specs-container" class="tc-badge-list">
+                    {% for k, v in contract.required_specs.items %}
+                    <span class="tc-badge tc-badge-spec">
+                        <strong>{{ k }}:</strong> {{ v }}
+                        <button type="button" class="tc-badge-remove" onclick="removeSpec('required', '{{ k|escapejs }}')" aria-label="Remove required specification {{ k }}">&times;</button>
+                    </span>
+                    {% empty %}
+                    <span style="font-size: 0.8125rem; color: var(--tc-text-subtle);">None specified.</span>
+                    {% endfor %}
+                </div>
+                <div class="tc-grid-2" style="margin-top: 0.5rem; gap: 0.5rem;">
+                    <div>
+                        <label class="tc-label" for="add-req-key" style="font-size: 0.775rem;">Required Attribute</label>
+                        <input type="text" id="add-req-key" placeholder="{{ edit_metadata.attr_placeholder }}" class="tc-input tc-input-sm">
+                    </div>
+                    <div>
+                        <label class="tc-label" for="add-req-val" style="font-size: 0.775rem;">Required Value</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="add-req-val" placeholder="{{ edit_metadata.val_placeholder }}" class="tc-input tc-input-sm" style="flex: 1;">
+                            <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="addSpec('required')">Add Required</button>
+                        </div>
+                    </div>
+                </div>
+                {{ form.required_specs_json }}
+            </div>
+
+            <!-- Preferred Specifications -->
+            <div style="margin-bottom: var(--tc-space-md);">
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--tc-primary);">Preferred Specifications (Nice-to-Have)</h3>
+                <div id="preferred-specs-container" class="tc-badge-list">
+                    {% for k, v in contract.preferred_specs.items %}
+                    <span class="tc-badge tc-badge-pref">
+                        <strong>{{ k }}:</strong> {{ v }}
+                        <button type="button" class="tc-badge-remove" onclick="removeSpec('preferred', '{{ k|escapejs }}')" aria-label="Remove preferred specification {{ k }}">&times;</button>
+                    </span>
+                    {% empty %}
+                    <span style="font-size: 0.8125rem; color: var(--tc-text-subtle);">None specified.</span>
+                    {% endfor %}
+                </div>
+                <div class="tc-grid-2" style="margin-top: 0.5rem; gap: 0.5rem;">
+                    <div>
+                        <label class="tc-label" for="add-pref-key" style="font-size: 0.775rem;">Preferred Attribute</label>
+                        <input type="text" id="add-pref-key" placeholder="{{ edit_metadata.attr_placeholder }}" class="tc-input tc-input-sm">
+                    </div>
+                    <div>
+                        <label class="tc-label" for="add-pref-val" style="font-size: 0.775rem;">Preferred Value</label>
+                        <div style="display: flex; gap: 0.5rem;">
+                            <input type="text" id="add-pref-val" placeholder="{{ edit_metadata.val_placeholder }}" class="tc-input tc-input-sm" style="flex: 1;">
+                            <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="addSpec('preferred')">Add Preferred</button>
+                        </div>
+                    </div>
+                </div>
+                {{ form.preferred_specs_json }}
+            </div>
+
+            <!-- Excluded Terms -->
+            <div style="margin-bottom: var(--tc-space-md);">
+                <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--tc-primary);">Excluded Terms &amp; Brands</h3>
+                <div id="excluded-terms-container" class="tc-badge-list">
+                    {% for term in contract.excluded_terms %}
+                    <span class="tc-badge tc-badge-danger">
+                        {{ term }}
+                        <button type="button" class="tc-badge-remove" onclick="removeExcludedTerm('{{ term|escapejs }}')" aria-label="Remove excluded term {{ term }}">&times;</button>
+                    </span>
+                    {% empty %}
+                    <span style="font-size: 0.8125rem; color: var(--tc-text-subtle);">No excluded terms.</span>
+                    {% endfor %}
+                </div>
+                {% if edit_metadata.common_exclusions %}
+                <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; align-items: center; margin-top: 0.35rem; margin-bottom: 0.4rem;">
+                    <span style="font-size: 0.75rem; color: var(--tc-text-muted);">Common exclusions:</span>
+                    {% for excl in edit_metadata.common_exclusions %}
+                    <button type="button" class="tc-btn tc-btn-outline tc-btn-xs" onclick="quickAddExclusion('{{ excl|escapejs }}')">+ Exclude {{ excl }}</button>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <div>
+                    <label class="tc-label" for="add-excluded-term" style="font-size: 0.775rem;">Keyword or Brand to Exclude</label>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <input type="text" id="add-excluded-term" placeholder="{{ edit_metadata.excl_placeholder }}" class="tc-input tc-input-sm" style="flex: 1; min-width: 200px;">
+                        <button type="button" class="tc-btn tc-btn-secondary tc-btn-sm" onclick="addExcludedTerm()">Add Exclusion</button>
+                    </div>
+                </div>
+                {{ form.excluded_terms_json }}
+            </div>
+
+            {{ form.ambiguous_requirements_json }}
+
+            <div class="tc-actions" style="border-top: 1px solid var(--tc-border); padding-top: var(--tc-space-md);">
+                <button type="submit" class="tc-btn tc-btn-secondary">
+                    Save Parameter Changes
+                </button>
+                <button type="button" class="tc-btn tc-btn-outline" onclick="toggleEditPanel()">
+                    Cancel
+                </button>
+            </div>
+        </form>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+{{ contract.required_specs|json_script:"tc-req-specs-data" }}
+{{ contract.preferred_specs|json_script:"tc-pref-specs-data" }}
+{{ contract.excluded_terms|json_script:"tc-excl-terms-data" }}
+<script>
+    function parseJsonScript(id, fallbackVal) {
+        const el = document.getElementById(id);
+        if (!el) return fallbackVal;
+        try { return JSON.parse(el.textContent) || fallbackVal; } catch (e) { return fallbackVal; }
+    }
+
+    let requiredSpecs = parseJsonScript('tc-req-specs-data', {});
+    let preferredSpecs = parseJsonScript('tc-pref-specs-data', {});
+    let excludedTerms = parseJsonScript('tc-excl-terms-data', []);
+
+    function toggleEditPanel() {
+        const panel = document.getElementById('edit-criteria-panel');
+        const toggleBtn = document.getElementById('toggle-edit-btn');
+        if (panel) {
+            const isHidden = panel.style.display === 'none';
+            panel.style.display = isHidden ? 'block' : 'none';
+            if (toggleBtn) toggleBtn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+            if (isHidden) {
+                panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                const catInput = document.getElementById('id_category');
+                if (catInput) catInput.focus();
+            }
+        }
+    }
+
+    function syncHiddenFields() {
+        const reqEl = document.getElementById('id_required_specs_json');
+        const prefEl = document.getElementById('id_preferred_specs_json');
+        const exclEl = document.getElementById('id_excluded_terms_json');
+        if (reqEl) reqEl.value = JSON.stringify(requiredSpecs);
+        if (prefEl) prefEl.value = JSON.stringify(preferredSpecs);
+        if (exclEl) exclEl.value = JSON.stringify(excludedTerms);
+    }
+
+    function quickAddAttribute(type, key, val) {
+        if (!key || !val) return;
+        if (type === 'required') {
+            requiredSpecs[key] = val;
+        } else {
+            preferredSpecs[key] = val;
+        }
+        syncHiddenFields();
+        renderSpecs(type);
+        if (window.AICartUI) window.AICartUI.announce('Added ' + key + ': ' + val);
+    }
+
+    function quickAddExclusion(term) {
+        if (!term) return;
+        if (!excludedTerms.includes(term)) {
+            excludedTerms.push(term);
+            syncHiddenFields();
+            renderExcludedTerms();
+            if (window.AICartUI) window.AICartUI.announce('Added excluded term ' + term);
+        }
+    }
+
+    function addSpec(type) {
+        const keyInput = document.getElementById(type === 'required' ? 'add-req-key' : 'add-pref-key');
+        const valInput = document.getElementById(type === 'required' ? 'add-req-val' : 'add-pref-val');
+        const key = (keyInput?.value || '').trim();
+        const val = (valInput?.value || '').trim();
+        if (!key || !val) return;
+
+        if (type === 'required') {
+            requiredSpecs[key] = val;
+        } else {
+            preferredSpecs[key] = val;
+        }
+        keyInput.value = '';
+        valInput.value = '';
+        syncHiddenFields();
+        renderSpecs(type);
+    }
+
+    function removeSpec(type, key) {
+        if (type === 'required') {
+            delete requiredSpecs[key];
+        } else {
+            delete preferredSpecs[key];
+        }
+        syncHiddenFields();
+        renderSpecs(type);
+    }
+
+    function renderSpecs(type) {
+        const container = document.getElementById(type === 'required' ? 'required-specs-container' : 'preferred-specs-container');
+        if (!container) return;
+        const specs = type === 'required' ? requiredSpecs : preferredSpecs;
+        container.innerHTML = '';
+        const keys = Object.keys(specs);
+        if (keys.length === 0) {
+            const emptySpan = document.createElement('span');
+            emptySpan.style.fontSize = '0.8125rem';
+            emptySpan.style.color = 'var(--tc-text-subtle)';
+            emptySpan.textContent = 'None specified.';
+            container.appendChild(emptySpan);
+            return;
+        }
+        keys.forEach(k => {
+            const span = document.createElement('span');
+            span.className = type === 'required' ? 'tc-badge tc-badge-spec' : 'tc-badge tc-badge-pref';
+            const strong = document.createElement('strong');
+            strong.textContent = k + ':';
+            span.appendChild(strong);
+            span.appendChild(document.createTextNode(' ' + String(specs[k]) + ' '));
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'tc-badge-remove';
+            btn.textContent = '\u00d7';
+            btn.setAttribute('aria-label', 'Remove ' + type + ' specification ' + k);
+            btn.addEventListener('click', () => removeSpec(type, k));
+            span.appendChild(btn);
+            container.appendChild(span);
+        });
+    }
+
+    function addExcludedTerm() {
+        const input = document.getElementById('add-excluded-term');
+        const term = (input?.value || '').trim();
+        if (!term) return;
+        if (!excludedTerms.includes(term)) {
+            excludedTerms.push(term);
+            syncHiddenFields();
+            renderExcludedTerms();
+        }
+        input.value = '';
+    }
+
+    function removeExcludedTerm(term) {
+        excludedTerms = excludedTerms.filter(t => t !== term);
+        syncHiddenFields();
+        renderExcludedTerms();
+    }
+
+    function renderExcludedTerms() {
+        const container = document.getElementById('excluded-terms-container');
+        if (!container) return;
+        container.innerHTML = '';
+        if (excludedTerms.length === 0) {
+            const emptySpan = document.createElement('span');
+            emptySpan.style.fontSize = '0.8125rem';
+            emptySpan.style.color = 'var(--tc-text-subtle)';
+            emptySpan.textContent = 'No excluded terms.';
+            container.appendChild(emptySpan);
+            return;
+        }
+        excludedTerms.forEach(term => {
+            const span = document.createElement('span');
+            span.className = 'tc-badge tc-badge-danger';
+            span.appendChild(document.createTextNode(String(term) + ' '));
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'tc-badge-remove';
+            btn.textContent = '\u00d7';
+            btn.setAttribute('aria-label', 'Remove excluded term ' + term);
+            btn.addEventListener('click', () => removeExcludedTerm(term));
+            span.appendChild(btn);
+            container.appendChild(span);
+        });
+    }
+
+    // Handle "Other" custom text reveal for optional clarifications
+    document.querySelectorAll('select.tc-clarify-input').forEach(sel => {
+        const customWrap = document.getElementById(sel.id + '_custom_wrap');
+        if (!customWrap) return;
+        sel.addEventListener('change', function() {
+            customWrap.style.display = this.value === 'Other' ? 'block' : 'none';
+        });
+    });
+
+    // If user filled optional clarifications and directly clicked "Confirm & Lock Criteria",
+    // copy populated optional values into hidden inputs so they are saved as preferences cleanly.
+    const confirmForm = document.getElementById('confirm-contract-form');
+    const confirmSync = document.getElementById('confirm-clarify-sync');
+    if (confirmForm && confirmSync) {
+        confirmForm.addEventListener('submit', function() {
+            confirmSync.innerHTML = '';
+            const clarifyForm = document.getElementById('optional-clarify-form');
+            if (!clarifyForm) return;
+            clarifyForm.querySelectorAll('input, select').forEach(el => {
+                if (!el.name || el.name === 'csrfmiddlewaretoken') return;
+                if (el.type === 'checkbox') {
+                    if (el.checked) {
+                        const h = document.createElement('input');
+                        h.type = 'hidden';
+                        h.name = el.name;
+                        h.value = 'on';
+                        confirmSync.appendChild(h);
+                    }
+                } else if (el.value) {
+                    const h = document.createElement('input');
+                    h.type = 'hidden';
+                    h.name = el.name;
+                    h.value = el.value;
+                    confirmSync.appendChild(h);
+                }
+            });
+        });
+    }
+
+    syncHiddenFields();
+</script>
+{% endblock %}

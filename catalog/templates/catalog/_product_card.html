@@ -1,0 +1,203 @@
+{% with product=item.product card_idx=item.index|default:forloop.counter0 %}
+<article class="tc-card tc-product-card-curated {% if not item.is_eligible %}tc-card-ineligible{% endif %}" id="prod-card-{{ card_idx }}">
+    <div class="tc-prod-card-top">
+        <!-- Selection for Comparison Control & Grounded Distinctions -->
+        <div class="tc-compare-select-wrap">
+            <label class="tc-compare-check-label" for="compare-check-{{ card_idx }}">
+                <input type="checkbox"
+                       id="compare-check-{{ card_idx }}"
+                       class="tc-compare-check"
+                       data-idx="{{ card_idx }}"
+                       onchange="updateComparisonSelection(this)"
+                       aria-label="Select {{ product.title }} to compare">
+                <span>Select to compare</span>
+            </label>
+            <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                {% if item.is_eligible %}
+                    {% for dist in item.distinctions %}
+                    <span class="tc-badge {% if dist == 'Best Preference Match' %}tc-badge-primary{% elif dist == 'Lowest Item Subtotal' %}tc-badge-success{% else %}tc-badge-spec{% endif %}">
+                        {{ dist }}
+                    </span>
+                    {% empty %}
+                    <span class="tc-badge tc-badge-success">{{ item.status_label }}</span>
+                    {% endfor %}
+                {% elif item.outcome == 'UNKNOWN' %}
+                <span class="tc-badge tc-badge-pref">{{ item.status_label }}</span>
+                {% else %}
+                <span class="tc-badge tc-badge-danger">{{ item.status_label }}</span>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Card Image (with validated http/https URL and non-broken SVG fallback placeholder) -->
+        <div class="tc-prod-img-box">
+            {% if item.image_url %}
+            <img src="{{ item.image_url }}"
+                 alt="{{ product.title }}"
+                 class="tc-prod-img"
+                 width="320"
+                 height="240"
+                 {% if is_lazy %}loading="lazy"{% endif %}
+                 decoding="async"
+                 onerror="window.tcHandleImgError(this)">
+            <div class="tc-prod-img-fallback" style="display: none;" role="img" aria-label="Product image unavailable for {{ product.title }}">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>Product Image Unavailable</span>
+            </div>
+            {% else %}
+            <div class="tc-prod-img-fallback" role="img" aria-label="No product image provided for {{ product.title }}">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                    <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                    <polyline points="21 15 16 10 5 21"></polyline>
+                </svg>
+                <span>No Product Image</span>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Brand, Title, Variant -->
+        <div style="margin-top: 0.75rem;">
+            {% if product.brand %}
+            <div class="tc-prod-brand-label">{{ product.brand }}</div>
+            {% endif %}
+            <h3 class="tc-prod-title">{{ product.title }}</h3>
+            {% if product.variant_id %}
+            <div class="tc-prod-variant-label">Variant: {{ product.variant_id }}</div>
+            {% endif %}
+        </div>
+
+        <!-- Price & Budget Remaining (Items Only) -->
+        <div class="tc-prod-price-row">
+            <div class="tc-prod-price-main">
+                <span class="tc-prod-price-number">${{ product.price }}</span>
+                <span class="tc-prod-price-currency">{{ product.currency }}</span>
+                {% if item.quantity > 1 %}
+                <span style="font-size: 0.8125rem; color: var(--tc-text-muted);">(Subtotal: ${{ item.item_subtotal }})</span>
+                {% endif %}
+            </div>
+            {% if item.budget_remaining > 0 %}
+            <span class="tc-savings-pill" title="Contract item budget ceiling minus item subtotal (excludes unconfirmed shipping and tax)">
+                Budget Remaining (Items Only): ${{ item.budget_remaining|floatformat:2 }}
+            </span>
+            {% elif item.budget_remaining == 0 %}
+            <span class="tc-savings-pill" style="background: var(--tc-surface-subtle); color: var(--tc-text-muted); border-color: var(--tc-border);">
+                Exact Item Budget
+            </span>
+            {% endif %}
+        </div>
+
+        <!-- Merchant & Stock -->
+        <div class="tc-merchant-row" style="margin-bottom: 0.75rem;">
+            <span>Seller: <strong>{{ product.source_merchant }}</strong></span>
+            {% if product.stock_status == 'IN_STOCK' %}
+            <span class="tc-stock-tag tc-stock-in">&#x2714; In Stock</span>
+            {% elif product.stock_status == 'OUT_OF_STOCK' %}
+            <span class="tc-stock-tag tc-stock-out">Out of Stock</span>
+            {% else %}
+            <span class="tc-stock-tag tc-stock-out">Stock Unconfirmed</span>
+            {% endif %}
+        </div>
+
+        <!-- Key Specifications Bullets (2-3 important matching specs) -->
+        {% if item.key_specs %}
+        <div class="tc-key-specs-box" style="margin-bottom: 0.75rem;">
+            <span class="tc-key-specs-label">Key Specifications:</span>
+            <ul class="tc-key-specs-list">
+                {% for k, v in item.key_specs %}
+                <li><strong>{{ k }}:</strong> {{ v }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Outcome-Grounded Fit / Rejection Rationale -->
+        {% if item.is_eligible %}
+        <div class="tc-match-rationale-box">
+            <strong class="tc-match-rationale-title">&#x2714; Why It Matches:</strong>
+            <p class="tc-match-rationale-desc">{{ item.match_reason }}</p>
+        </div>
+        <div class="tc-tradeoff-box">
+            <span class="tc-tradeoff-label">&#x2139; Trade-off / Caveat:</span>
+            <span class="tc-tradeoff-text">{{ item.tradeoff }}</span>
+        </div>
+        {% elif item.outcome == 'UNKNOWN' %}
+        <div class="tc-uncertain-box">
+            <strong class="tc-uncertain-title">&#x26A0; Verification Needed:</strong>
+            <p class="tc-uncertain-desc">{{ item.warning_headline }} {{ item.match_reason }}</p>
+        </div>
+        {% else %}
+        <div class="tc-ineligible-box">
+            <strong class="tc-ineligible-title">&times; Does Not Match Criteria:</strong>
+            <p class="tc-ineligible-desc">{{ item.warning_headline }} {{ item.match_reason }}</p>
+        </div>
+        {% endif %}
+
+        <!-- Listing Provenance (Progressive Disclosure) -->
+        <details class="tc-additional-options tc-card-options">
+            <summary class="tc-summary-toggle">
+                <span>Product details &amp; listing info</span>
+            </summary>
+            <div class="tc-options-content">
+                <div class="tc-meta-row">
+                    <span class="tc-meta-k">SKU / ID:</span>
+                    <code>{{ product.sku|default:product.product_id }}</code>
+                </div>
+                <div class="tc-meta-row">
+                    <span class="tc-meta-k">Evidence Source:</span>
+                    <span>{% if product.is_fixture %}Demonstration Sample{% else %}Verified Catalog{% endif %}</span>
+                </div>
+                <div class="tc-meta-row">
+                    <span class="tc-meta-k">Retrieved:</span>
+                    <span>{{ product.retrieval_timestamp|date:"Y-m-d H:i" }} UTC</span>
+                </div>
+                <div class="tc-meta-row">
+                    <span class="tc-meta-k">Shipping &amp; Tax:</span>
+                    <span>Unconfirmed until checkout summary</span>
+                </div>
+            </div>
+        </details>
+    </div>
+
+    <!-- Clear Selection / Auditable Buy Anyway Action -->
+    <div class="tc-card-footer-actions">
+        {% if item.is_eligible %}
+        <form method="POST"
+              action="{% url 'contract_select_product' contract.public_ref product.product_id %}"
+              style="flex: 2; display: flex;"
+              data-loading-form
+              data-loading-label="Preparing summary...">
+            {% csrf_token %}
+            <button type="submit" class="tc-btn tc-btn-primary" style="width: 100%; text-align: center;">
+                Select This Product &rarr;
+            </button>
+        </form>
+        {% elif item.can_buy_anyway %}
+        <a href="{% url 'contract_buy_anyway' contract.public_ref product.product_id %}"
+           class="tc-btn tc-btn-secondary tc-buy-anyway-btn"
+           style="flex: 2; text-align: center;">
+            Buy Anyway &rarr;
+        </a>
+        {% else %}
+        <button type="button" class="tc-btn tc-btn-outline" disabled style="flex: 2; opacity: 0.7;">
+            {{ item.unavailable_label|default:"Unavailable" }}
+        </button>
+        {% endif %}
+
+        {% if product.product_url %}
+        <a href="{{ product.product_url }}"
+           target="_blank"
+           rel="noopener noreferrer"
+           class="tc-btn tc-btn-outline tc-btn-sm"
+           title="Open {{ product.title }} on merchant website (leaves AI Cart)">
+            Merchant site <span class="visually-hidden">for {{ product.title }} (opens external website in new tab)</span> &#x2197;
+        </a>
+        {% endif %}
+    </div>
+</article>
+{% endwith %}
+

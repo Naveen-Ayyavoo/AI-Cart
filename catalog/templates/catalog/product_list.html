@@ -1,0 +1,549 @@
+
+{% extends "base.html" %}
+
+{% block title %}Matching Products — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Matching Products</h1>
+            <p class="tc-page-intro-sub">
+                Curated options for <strong>{{ contract.product_description }}</strong> ({{ contract.category }}) within your <strong>${{ contract.max_budget }} {{ contract.currency }}</strong> item budget limit ({{ contract.quantity }} {% if contract.quantity == 1 %}unit{% else %}units{% endif %}, Version {{ contract.version }}).
+            </p>
+        </div>
+        <div class="tc-page-intro-actions tc-action-bar">
+            <a href="{% url 'contract_review' contract.public_ref %}" class="tc-btn tc-btn-outline tc-btn-sm">&larr; Edit Criteria</a>
+            <a href="?refresh=1"
+               class="tc-btn tc-btn-outline tc-btn-sm"
+               title="Refresh Channel3 product search results"
+               data-loading-link
+               data-loading-label="Refreshing Channel3..."
+               data-loading-title="Refreshing Channel3 product listings"
+               data-loading-subtitle="Searching Channel3's product catalogue and retrieving updated product details."
+               data-loading-steps="Searching Channel3's product catalogue|Retrieving updated product details|Checking matches against your requirements">
+                &#x21bb; Refresh
+            </a>
+            <a href="{% url 'contract_evaluation' contract.public_ref %}"
+               class="tc-btn tc-btn-secondary tc-btn-sm"
+               data-loading-link
+               data-loading-label="Checking results..."
+               data-loading-title="Checking product details against requirements"
+               data-loading-subtitle="Retrieving product details and running deterministic requirement checks."
+               data-loading-steps="Retrieving product details|Checking matches against your requirements|Preparing full check breakdown">
+                View All Results &rarr;
+            </a>
+        </div>
+    </div>
+
+    {% if messages %}
+    <div class="tc-messages" role="alert">
+        {% for message in messages %}
+        <div class="tc-alert tc-alert-{{ message.tags }}">
+            {{ message }}
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <!-- Optional Budget & Criteria Revision Card (Defect 5: Shown cleanly when candidates exceed budget or always accessible neutrally) -->
+    {% if over_budget_count > 0 or eligible_count == 0 %}
+    <section class="tc-card" style="background: var(--tc-warning-bg); border: 1px solid var(--tc-warning-border); border-left: 4px solid var(--tc-warning); margin-bottom: var(--tc-space-lg);" aria-labelledby="budget-adjust-heading">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.75rem;">
+            <div>
+                <h2 id="budget-adjust-heading" style="font-size: 1.05rem; font-weight: 800; color: var(--tc-warning-text); margin: 0;">
+                    {% if eligible_count == 0 and over_budget_count > 0 %}
+                    No candidates fit your current ${{ contract.max_budget }} {{ contract.currency }} budget ceiling
+                    {% else %}
+                    {{ over_budget_count }} candidate{{ over_budget_count|pluralize }} exceed your ${{ contract.max_budget }} {{ contract.currency }} budget ceiling
+                    {% endif %}
+                </h2>
+                <p style="font-size: 0.875rem; color: var(--tc-warning-text); margin: 0.25rem 0 0 0;">
+                    {% if min_over_budget_subtotal %}
+                    Over-budget options start at <strong>${{ min_over_budget_subtotal }} {{ contract.currency }}</strong> (items only).
+                    {% endif %}
+                    Your current confirmed contract (v{{ contract.version }}) cannot be altered silently, but you can optionally create a new Draft version with a revised budget or adjust your criteria.
+                </p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                <button type="button"
+                        class="tc-btn tc-btn-primary tc-btn-sm"
+                        id="toggle-increase-budget-btn"
+                        aria-expanded="false"
+                        aria-controls="increase-budget-panel"
+                        onclick="toggleBudgetPanel()">
+                    Increase budget
+                </button>
+            </div>
+        </div>
+
+        <div id="increase-budget-panel" style="display: none; margin-top: var(--tc-space-md); padding: var(--tc-space-md); background: #ffffff; border: 1px solid var(--tc-border); border-radius: var(--tc-radius-md);">
+            <form method="POST"
+                  action="{% url 'contract_revise_budget' contract.public_ref %}"
+                  id="revise-budget-form"
+                  data-loading-form
+                  data-loading-label="Creating revised draft...">
+                {% csrf_token %}
+                <input type="hidden" name="next" value="discovery">
+                <div class="tc-grid-2" style="align-items: end;">
+                    <div class="tc-form-group" style="margin-bottom: 0;">
+                        <label class="tc-label" for="revise-max-budget">
+                            New Maximum Budget Ceiling ({{ contract.currency }})
+                        </label>
+                        <div class="tc-input-prefix-wrapper">
+                            <span class="tc-input-prefix" aria-hidden="true">$</span>
+                            <input type="number"
+                                   id="revise-max-budget"
+                                   name="max_budget"
+                                   step="0.01"
+                                   min="0.01"
+                                   required
+                                   value="{% if min_over_budget_subtotal and min_over_budget_subtotal > contract.max_budget %}{{ min_over_budget_subtotal }}{% else %}{{ contract.max_budget }}{% endif %}"
+                                   class="tc-input"
+                                   aria-describedby="revise-budget-help">
+                        </div>
+                        <span class="tc-hint" id="revise-budget-help">
+                            Current confirmed budget (v{{ contract.version }}): <strong>${{ contract.max_budget }} {{ contract.currency }}</strong> (Qty: {{ contract.quantity }}).
+                        </span>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button type="submit" class="tc-btn tc-btn-primary">
+                            Review Proposed Budget Revision &rarr;
+                        </button>
+                        <button type="button" class="tc-btn tc-btn-outline" onclick="toggleBudgetPanel()">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+                <p style="font-size: 0.8rem; color: var(--tc-text-muted); margin: 0.65rem 0 0 0;">
+                    <strong>Important:</strong> Changing your budget updates your shopping criteria only &mdash; it creates a new Draft version for your review and confirmation, preserves Version {{ contract.version }}, and <strong>does not authorize payment</strong>.
+                </p>
+            </form>
+        </div>
+    </section>
+    {% else %}
+    <div style="display: flex; justify-content: flex-end; margin-top: -0.75rem; margin-bottom: var(--tc-space-md); gap: 0.5rem; flex-wrap: wrap;">
+        <button type="button"
+                class="tc-btn tc-btn-outline tc-btn-xs"
+                id="toggle-increase-budget-btn"
+                aria-expanded="false"
+                aria-controls="increase-budget-panel"
+                onclick="toggleBudgetPanel()">
+            Increase budget
+        </button>
+    </div>
+    <div id="increase-budget-panel" class="tc-card" style="display: none; border-left: 4px solid var(--tc-accent); margin-bottom: var(--tc-space-lg);">
+        <h2 style="font-size: 1.05rem; font-weight: 700; color: var(--tc-primary); margin-bottom: 0.35rem;">
+            Revise Item Budget Limit
+        </h2>
+        <p style="font-size: 0.85rem; color: var(--tc-text-muted); margin-bottom: 0.75rem;">
+            Current confirmed budget (v{{ contract.version }}): <strong>${{ contract.max_budget }} {{ contract.currency }}</strong>. Changing your budget creates a new Draft version and updates shopping criteria only (not payment authorization).
+        </p>
+        <form method="POST"
+              action="{% url 'contract_revise_budget' contract.public_ref %}"
+              id="revise-budget-form"
+              data-loading-form
+              data-loading-label="Creating revised draft...">
+            {% csrf_token %}
+            <input type="hidden" name="next" value="discovery">
+            <div class="tc-grid-2" style="align-items: end;">
+                <div class="tc-form-group" style="margin-bottom: 0;">
+                    <label class="tc-label" for="revise-max-budget">New Budget Ceiling ({{ contract.currency }})</label>
+                    <div class="tc-input-prefix-wrapper">
+                        <span class="tc-input-prefix" aria-hidden="true">$</span>
+                        <input type="number" id="revise-max-budget" name="max_budget" step="0.01" min="0.01" required value="{{ contract.max_budget }}" class="tc-input">
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                    <button type="submit" class="tc-btn tc-btn-primary">Review Proposed Budget Revision &rarr;</button>
+                    <button type="button" class="tc-btn tc-btn-outline" onclick="toggleBudgetPanel()">Cancel</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    {% endif %}
+
+    <!-- Demonstration Sample Disclosure (When offline or free fallback) -->
+    {% if is_fallback %}
+    <div class="tc-alert tc-alert-fallback" role="status">
+        <div style="font-size: 1.25rem;" aria-hidden="true">&#x26A0;</div>
+        <div>
+            <strong>Demonstration Sample Products:</strong>
+            Live catalog search is operating with verified demonstration products to guarantee reproducible evaluation without external API dependency.
+        </div>
+    </div>
+    {% endif %}
+
+    {% if products %}
+    <!-- Requested Comparison Panel (Revealed on-demand when shopper requests comparison) -->
+    <div class="tc-comparison-panel" id="comparison-panel" style="display: none;" role="region" aria-label="Product Comparison">
+        <div class="tc-comparison-panel-header">
+            <div>
+                <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
+                    <span class="tc-badge tc-badge-spec">Decision Assistance</span>
+                    <span style="font-size: 0.75rem; color: var(--tc-text-subtle);">On-Demand Comparison</span>
+                </div>
+                <h2 style="font-size: 1.2rem; font-weight: 800; color: var(--tc-primary); margin: 0;">
+                    Comparing Selected Products (<span id="compare-panel-count">0</span>)
+                </h2>
+                <p class="tc-card-subtitle" style="margin: 0.2rem 0 0 0;">
+                    Review key differences side-by-side to make a confident decision.
+                </p>
+            </div>
+            <button type="button" class="tc-btn tc-btn-outline tc-btn-xs" onclick="closeComparison()" aria-label="Close Comparison">
+                &times; Close Comparison
+            </button>
+        </div>
+
+        <div class="tc-compare-grid-desktop" id="comparison-items-grid">
+            {% for item in decorated_items %}
+            {% with product=item.product cmp_idx=item.index|default:forloop.counter0 %}
+            <div class="tc-compare-col" id="compare-col-{{ cmp_idx }}" style="display: none;">
+                <div>
+                    <!-- Distinctions & Provenance -->
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.25rem;">
+                        <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
+                            {% for dist in item.distinctions %}
+                            <span class="tc-badge {% if dist == 'Best Preference Match' %}tc-badge-primary{% elif dist == 'Lowest Item Subtotal' %}tc-badge-success{% elif dist == 'Ineligible' %}tc-badge-danger{% elif dist == 'Needs Verification' %}tc-badge-pref{% else %}tc-badge-spec{% endif %}">
+                                {{ dist }}
+                            </span>
+                            {% empty %}
+                            <span class="tc-badge tc-badge-outline">Candidate</span>
+                            {% endfor %}
+                        </div>
+                        <span style="font-size: 0.725rem; color: var(--tc-text-subtle);">
+                            {% if product.is_fixture %}Demo Fixture{% else %}Live Evidence{% endif %}
+                        </span>
+                    </div>
+
+                    <div class="tc-compare-prod-img-wrap" style="height: 110px; margin-bottom: 0.5rem;">
+                        {% if item.image_url %}
+                        <img src="{{ item.image_url }}" alt="{{ product.title }}" class="tc-compare-prod-img" loading="lazy" decoding="async" onerror="window.tcHandleImgError(this)">
+                        <div class="tc-compare-img-placeholder" style="display: none;" role="img" aria-label="Image unavailable">No Image</div>
+                        {% else %}
+                        <div class="tc-compare-img-placeholder" role="img" aria-label="No product image">No Image</div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Title & Brand -->
+                    <div style="font-size: 0.75rem; color: var(--tc-text-subtle); text-transform: uppercase; font-weight: 700;">
+                        {{ product.brand|default:"Verified Brand" }}
+                    </div>
+                    <h3 style="font-size: 0.95rem; font-weight: 700; color: var(--tc-text); margin: 0.2rem 0 0.5rem 0; line-height: 1.3;">
+                        {{ product.title }}
+                    </h3>
+
+                    <!-- Price & Budget Remaining (Items Only) -->
+                    <div style="display: flex; align-items: baseline; gap: 0.5rem; margin-bottom: 0.75rem; flex-wrap: wrap;">
+                        <span style="font-size: 1.3rem; font-weight: 800; color: var(--tc-primary);">${{ product.price }}</span>
+                        <span style="font-size: 0.775rem; color: var(--tc-text-muted);">{{ product.currency }}</span>
+                        {% if item.quantity > 1 %}
+                        <span style="font-size: 0.8125rem; color: var(--tc-text-muted);">(Subtotal: ${{ item.item_subtotal }})</span>
+                        {% endif %}
+                        {% if item.budget_remaining > 0 %}
+                        <span class="tc-savings-pill">Budget Remaining (Items Only): ${{ item.budget_remaining|floatformat:2 }}</span>
+                        {% elif item.budget_remaining == 0 %}
+                        <span class="tc-savings-pill" style="background: var(--tc-surface-subtle); color: var(--tc-text-muted);">Exact Item Budget</span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Match / Constraint Rationale -->
+                    <div style="background: var(--tc-surface); border: 1px solid var(--tc-border); border-radius: var(--tc-radius-sm); padding: 0.6rem; margin-bottom: 0.6rem;">
+                        <strong style="font-size: 0.75rem; color: {% if item.is_eligible %}var(--tc-success-text){% else %}var(--tc-danger-text){% endif %}; display: block; margin-bottom: 0.2rem;">
+                            {% if item.is_eligible %}&#x2714; Match Rationale:{% else %}Status Rationale:{% endif %}
+                        </strong>
+                        <p style="font-size: 0.8125rem; color: var(--tc-text); margin: 0; line-height: 1.4;">
+                            {{ item.match_reason }}
+                        </p>
+                    </div>
+
+                    <!-- Key Specifications -->
+                    <div style="margin-bottom: 0.6rem;">
+                        <strong style="font-size: 0.75rem; color: var(--tc-text-muted); display: block; margin-bottom: 0.25rem;">
+                            Key Specifications:
+                        </strong>
+                        <ul class="tc-compare-specs-list" style="padding-left: 1rem; margin: 0;">
+                            {% for k, v in item.key_specs %}
+                            <li><strong>{{ k }}:</strong> {{ v }}</li>
+                            {% empty %}
+                            <li style="color: var(--tc-text-subtle);">Verified standard specs</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+
+                    <!-- Meaningful Trade-off -->
+                    <div style="background: var(--tc-warning-bg); border: 1px solid var(--tc-warning-border); border-radius: var(--tc-radius-sm); padding: 0.6rem; margin-bottom: 0.75rem;">
+                        <strong style="font-size: 0.75rem; color: var(--tc-warning-text); display: block; margin-bottom: 0.2rem;">
+                            &#x2139; Trade-off / Caveat:
+                        </strong>
+                        <span style="font-size: 0.8125rem; color: var(--tc-warning-text);">
+                            {{ item.tradeoff }}
+                        </span>
+                    </div>
+
+                    <!-- Merchant & Stock -->
+                    <div style="font-size: 0.8125rem; color: var(--tc-text-muted); margin-bottom: 0.75rem;">
+                        <div>Source Merchant: <strong>{{ product.source_merchant }}</strong></div>
+                        <div style="margin-top: 0.2rem;">
+                            {% if product.stock_status == 'IN_STOCK' %}
+                            <span class="tc-stock-tag tc-stock-in">&#x2714; In Stock</span>
+                            {% else %}
+                            <span class="tc-stock-tag tc-stock-out">{{ product.stock_status }}</span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Column Action -->
+                <div>
+                    {% if item.is_eligible %}
+                    <form method="POST" action="{% url 'contract_select_product' contract.public_ref product.product_id %}" data-loading-form data-loading-label="Preparing summary...">
+                        {% csrf_token %}
+                        <button type="submit" class="tc-btn tc-btn-primary tc-btn-sm" style="width: 100%; text-align: center;">
+                            Select This Product &rarr;
+                        </button>
+                    </form>
+                    {% elif item.can_buy_anyway %}
+                    <a href="{% url 'contract_buy_anyway' contract.public_ref product.product_id %}" class="tc-btn tc-btn-secondary tc-btn-sm" style="width: 100%; text-align: center;">
+                        Buy Anyway &rarr;
+                    </a>
+                    {% else %}
+                    <button type="button" class="tc-btn tc-btn-outline tc-btn-sm" disabled style="width: 100%; opacity: 0.7;">
+                        {{ item.unavailable_label|default:"Unavailable" }}
+                    </button>
+                    {% endif %}
+                </div>
+            </div>
+            {% endwith %}
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Section 1: Eligible Products Within Budget (Strictly Separated) -->
+    <section id="eligible-matches-section" style="margin-top: var(--tc-space-md); margin-bottom: var(--tc-space-lg);" aria-labelledby="shortlist-heading">
+        <div class="tc-section-header" style="margin-bottom: var(--tc-space-md);">
+            <div style="display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 0.5rem;">
+                <div>
+                    <h2 id="shortlist-heading" style="font-size: 1.25rem; font-weight: 800; color: var(--tc-primary); margin-bottom: 0.2rem;">
+                        Matching Products Within Budget
+                    </h2>
+                    <p class="tc-section-subtitle">
+                        Products that meet all required specifications and stay within your ${{ contract.max_budget }} {{ contract.currency }} item budget limit. Select up to 3 to compare.
+                    </p>
+                </div>
+                <span style="font-size: 0.8125rem; color: var(--tc-text-muted);">
+                    Showing {{ shortlist_items|length }} eligible option{{ shortlist_items|length|pluralize }}
+                </span>
+            </div>
+        </div>
+
+        <!-- Comparison Action Bar (Appears cleanly above shortlist without covering cards) -->
+        <div id="compare-bar" class="tc-compare-bar" style="display: none;" role="toolbar" aria-label="Comparison Actions">
+            <div class="tc-compare-bar-inner">
+                <div class="tc-compare-bar-info">
+                    <span class="tc-compare-bar-count"><strong id="compare-count-text">0</strong> of 3 selected to compare</span>
+                    <span class="tc-compare-bar-hint" id="compare-hint-text" role="status" aria-live="polite">Select at least 2 products to compare differences</span>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items: center;">
+                    <button type="button" id="compare-launch-btn" class="tc-btn tc-btn-primary tc-btn-sm" disabled onclick="openComparison()">
+                        Compare Selected &rarr;
+                    </button>
+                    <button type="button" class="tc-btn tc-btn-outline tc-btn-xs" style="color: #e2e8f0; border-color: #64748b;" onclick="clearComparisonSelection()">
+                        Clear
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        {% if shortlist_items %}
+        <div class="tc-shortlist-grid">
+            {% for item in shortlist_items %}
+                {% include "catalog/_product_card.html" with item=item is_lazy=False %}
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="tc-card" style="background: var(--tc-surface-subtle); margin-bottom: 0;">
+            <p style="margin: 0; font-size: 0.925rem; color: var(--tc-text-muted);">
+                No candidates satisfy every required specification within your ${{ contract.max_budget }} {{ contract.currency }} budget ceiling yet. Review unverified or over-budget items below, or adjust your criteria.
+            </p>
+        </div>
+        {% endif %}
+    </section>
+
+    <!-- Section 2: Separated Over-Budget, Unverified, or Conflicting Options -->
+    {% if visible_conflict_items %}
+    <section id="needs-review-section" style="margin-top: var(--tc-space-lg); margin-bottom: var(--tc-space-lg);" aria-labelledby="conflict-section-heading">
+        <div class="tc-section-header" style="margin-bottom: var(--tc-space-md);">
+            <h2 id="conflict-section-heading" style="font-size: 1.15rem; font-weight: 800; color: var(--tc-primary); margin-bottom: 0.2rem;">
+                Needs Verification or Over Budget
+            </h2>
+            <p class="tc-section-subtitle">
+                These matching-category products exceed your budget or need verification. Review warnings explicitly before proceeding.
+            </p>
+        </div>
+        <div class="tc-shortlist-grid">
+            {% for item in visible_conflict_items %}
+                {% include "catalog/_product_card.html" with item=item is_lazy=False %}
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <!-- Section 3: Additional Candidates & Incompatible/Unavailable Products -->
+    {% if additional_items %}
+    <details class="tc-more-results-details" id="more-results-details">
+        <summary class="tc-more-results-summary">
+            <span>Show more candidate products (+{{ additional_items|length }})</span>
+            <span class="tc-details-caret" aria-hidden="true">&#x25BE;</span>
+        </summary>
+        <div class="tc-shortlist-grid" style="margin-top: var(--tc-space-md);">
+            {% for item in additional_items %}
+                {% include "catalog/_product_card.html" with item=item is_lazy=True %}
+            {% endfor %}
+        </div>
+    </details>
+    {% endif %}
+
+    <!-- Accurate Cost & Demo Merchant Disclosure -->
+    <div class="tc-alert tc-alert-info" style="margin-top: var(--tc-space-lg); font-size: 0.8125rem;">
+        <div style="font-size: 1.1rem;" aria-hidden="true">&#x2139;</div>
+        <div>
+            <strong>Demonstration Payee &amp; Cost Notice:</strong> Catalog evidence reflects external merchants discovered via Channel3 (or offline fixtures). In this demonstration environment, transactions settle strictly in PayPal Sandbox against a controlled demo payee (<code>PU7K3F65AAQ8U</code>). Shipping and sales tax are unconfirmed from catalog evidence and are finalized prior to purchase approval.
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Empty State -->
+    <div class="tc-card" style="text-align: center; padding: 3rem 1.5rem;">
+        <h2 style="font-size: 1.35rem; font-weight: 700; color: var(--tc-primary);">No Eligible Products Found</h2>
+        <p class="tc-subtitle" style="margin-top: 0.5rem; max-width: 500px; margin-left: auto; margin-right: auto;">
+            Returned candidates were excluded because they did not match your availability, USD pricing, or requirement checks.
+        </p>
+        <div class="tc-actions" style="justify-content: flex-end; margin-top: 1.5rem;">
+            <a href="{% url 'contract_review' contract.public_ref %}" class="tc-btn tc-btn-outline">Edit Criteria</a>
+            <a href="?refresh=1"
+               class="tc-btn tc-btn-primary"
+               data-loading-link
+               data-loading-label="Refreshing Channel3..."
+               data-loading-title="Searching Channel3 product catalogue"
+               data-loading-subtitle="Searching Channel3's product catalogue and retrieving product details."
+               data-loading-steps="Searching Channel3's product catalogue|Retrieving product details and availability|Checking matches against your requirements">
+                &#x21bb; Retry Search
+            </a>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    let selectedIndices = new Set();
+
+    function toggleBudgetPanel() {
+        const panel = document.getElementById('increase-budget-panel');
+        const btn = document.getElementById('toggle-increase-budget-btn');
+        if (!panel) return;
+        const isHidden = panel.style.display === 'none';
+        panel.style.display = isHidden ? 'block' : 'none';
+        if (btn) btn.setAttribute('aria-expanded', isHidden ? 'true' : 'false');
+        if (isHidden) {
+            const input = document.getElementById('revise-max-budget');
+            if (input) input.focus();
+        }
+    }
+
+    function updateComparisonSelection(checkbox) {
+        const idx = checkbox.getAttribute('data-idx');
+        const hintText = document.getElementById('compare-hint-text');
+        if (checkbox.checked) {
+            if (selectedIndices.size >= 3) {
+                checkbox.checked = false;
+                if (hintText) {
+                    hintText.textContent = 'Maximum 3 products can be compared at once. Uncheck one to add another.';
+                }
+                if (window.AICartUI) {
+                    window.AICartUI.announce('Maximum of 3 products can be compared at a time.');
+                }
+                return;
+            }
+            selectedIndices.add(idx);
+        } else {
+            selectedIndices.delete(idx);
+        }
+        syncComparisonUI();
+    }
+
+    function syncComparisonUI() {
+        const bar = document.getElementById('compare-bar');
+        const countText = document.getElementById('compare-count-text');
+        const hintText = document.getElementById('compare-hint-text');
+        const launchBtn = document.getElementById('compare-launch-btn');
+        const panelCount = document.getElementById('compare-panel-count');
+
+        const count = selectedIndices.size;
+        if (countText) countText.textContent = count;
+        if (panelCount) panelCount.textContent = count;
+
+        if (count > 0) {
+            if (bar) bar.style.display = 'block';
+            if (count >= 2) {
+                if (launchBtn) {
+                    launchBtn.disabled = false;
+                    launchBtn.innerHTML = 'Compare Selected (' + count + ') &rarr;';
+                }
+                if (hintText) hintText.textContent = 'Ready to compare key differences';
+            } else {
+                if (launchBtn) {
+                    launchBtn.disabled = true;
+                    launchBtn.innerHTML = 'Compare Selected (' + count + ') &rarr;';
+                }
+                if (hintText) hintText.textContent = 'Select at least one more product to compare';
+            }
+        } else {
+            if (bar) bar.style.display = 'none';
+        }
+    }
+
+    function openComparison() {
+        if (selectedIndices.size < 2) return;
+
+        const panel = document.getElementById('comparison-panel');
+        if (!panel) return;
+
+        const allCols = document.querySelectorAll('.tc-compare-col');
+        allCols.forEach(col => col.style.display = 'none');
+
+        selectedIndices.forEach(idx => {
+            const col = document.getElementById('compare-col-' + idx);
+            if (col) col.style.display = 'flex';
+        });
+
+        panel.style.display = 'block';
+        panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        if (window.AICartUI) {
+            window.AICartUI.announce('Opened comparison view for ' + selectedIndices.size + ' products.');
+        }
+    }
+
+    function closeComparison() {
+        const panel = document.getElementById('comparison-panel');
+        if (panel) {
+            panel.style.display = 'none';
+        }
+        const shortlist = document.querySelector('.tc-shortlist-grid');
+        if (shortlist) {
+            shortlist.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    }
+
+    function clearComparisonSelection() {
+        selectedIndices.clear();
+        document.querySelectorAll('.tc-compare-check').forEach(cb => {
+            cb.checked = false;
+        });
+        syncComparisonUI();
+        closeComparison();
+    }
+</script>
+{% endblock %}

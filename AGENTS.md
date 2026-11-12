@@ -1,9 +1,9 @@
-# TrustCart Agent Operating Guide
+# AI Cart Agent Operating Guide
 
-Welcome to the **TrustCart** engineering workspace. TrustCart is a trustworthy autonomous shopping assistant developed for the PayPal AI Hackathon.
+Welcome to the **AI Cart** engineering workspace (formerly developed under the engineering working name **TrustCart**). AI Cart is a trustworthy autonomous shopping assistant developed for the PayPal AI Hackathon.
 
 ## Core Mission & Architecture
-TrustCart assists shoppers by understanding requirements, assembling structured Purchase Contracts, evaluating real-world product evidence via Channel3, and preparing deterministic purchase proposals for approval.
+AI Cart assists shoppers by understanding requirements, assembling structured Purchase Contracts, evaluating real-world product evidence via Channel3, and preparing deterministic purchase proposals for approval.
 
 ### Non-Negotiable Architectural Invariants:
 1. **Untrusted Reasoning Boundary**: Google Gemini is an advisory reasoning component. It proposes structured data but NEVER owns payment state or authorization.
@@ -12,7 +12,7 @@ TrustCart assists shoppers by understanding requirements, assembling structured 
 4. **Monetary Precision**: All monetary values and arithmetic MUST use Python `Decimal`. Binary floating-point (`float`) is strictly prohibited.
 5. **Approval Binding & Immutability**: Purchase approvals bind cryptographically to exact product, variant, payee, quantity, prices, currency, and cart fingerprint. Any material change invalidates the approval.
 6. **Single-Use, Time-Limited Approvals**: Approvals have an explicit TTL and are consumable only once.
-7. **Two-Stage Approval**: TrustCart purchase approval and PayPal buyer approval are separate sequential steps.
+7. **Two-Stage Approval**: AI Cart purchase approval and PayPal buyer approval are separate sequential steps.
 8. **Server-Side Capture**: PayPal capture occurs server-side only after approvals and deterministic pre-capture revalidation.
 9. **Idempotency & Webhook Verification**: State-mutating payment calls require idempotency keys. Webhooks must verify cryptographic signatures before processing.
 10. **Zero Sensitive Card Storage**: Never accept or persist credit card numbers, CVVs, or credentials.

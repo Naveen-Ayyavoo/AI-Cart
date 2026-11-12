@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Order Receipt — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Order Receipt</h1>
+            <p class="tc-page-intro-sub">
+                {% if order.status == 'REFUNDED' %}
+                This PayPal Sandbox order has been refunded. Review the recorded amounts below.
+                {% else %}
+                Your PayPal Sandbox test order is paid and recorded. Review your verified receipt below.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+
+    <!-- Hero Confirmation Card -->
+    <div class="tc-card" style="border-left: 4px solid {% if order.status == 'REFUNDED' %}var(--tc-accent){% else %}var(--tc-success){% endif %}; text-align: center; padding: var(--tc-space-lg) var(--tc-space-md); margin-bottom: var(--tc-space-md);">
+        <div style="background-color: {% if order.status == 'REFUNDED' %}var(--tc-accent){% else %}var(--tc-success){% endif %}; color: white; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto 0.65rem auto;" aria-hidden="true">
+            &#x2714;
+        </div>
+        {% if order.status == 'REFUNDED' %}
+        <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--tc-primary); margin-bottom: 0.35rem;">Order Refunded</h2>
+        <p class="tc-subtitle" style="font-size: 0.92rem;">
+            Refund recorded in PayPal Sandbox.
+        </p>
+        {% else %}
+        <h2 style="font-size: 1.35rem; font-weight: 800; color: var(--tc-primary); margin-bottom: 0.35rem;">Payment Completed &mdash; Order Paid</h2>
+        <p class="tc-subtitle" style="font-size: 0.92rem;">
+            Confirmed via PayPal Sandbox test payment.
+        </p>
+        {% endif %}
+    </div>
+
+    <!-- Controlled Demo Payee Disclosure Banner -->
+    <div class="tc-card" style="background-color: var(--tc-success-bg); border: 1px solid var(--tc-success-border); font-size: 0.84rem; color: var(--tc-success-text); margin-bottom: var(--tc-space-md); padding: var(--tc-space-md);">
+        {{ demo_payee_disclosure }}
+    </div>
+
+    <!-- Transaction Summary Card -->
+    <div class="tc-card">
+        <div class="tc-card-header">
+            <div>
+                <h2 style="font-size: 1.15rem; font-weight: 700; color: var(--tc-primary);">PayPal Transaction Summary</h2>
+                <p class="tc-card-subtitle">Verified in PayPal Sandbox.</p>
+            </div>
+            <div style="display: flex; gap: 0.5rem; align-items: center;">
+                <span class="tc-badge tc-badge-success">{{ order.status }}</span>
+                <span class="tc-badge tc-badge-outline">PayPal Sandbox</span>
+            </div>
+        </div>
+
+        <div class="tc-grid-2" style="margin-bottom: var(--tc-space-md);">
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">PayPal Order ID:</span>
+                <div style="font-size: 0.95rem; font-weight: 700; margin-top: 0.15rem;"><code>{{ order.paypal_order_id }}</code></div>
+            </div>
+            {% if capture %}
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">PayPal Capture ID:</span>
+                <div style="font-size: 0.95rem; font-weight: 700; margin-top: 0.15rem;"><code>{{ capture.capture_id }}</code></div>
+            </div>
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">Capture Status:</span>
+                <div style="font-size: 1rem; font-weight: 800; color: var(--tc-success); margin-top: 0.15rem;">{{ capture.status }}</div>
+            </div>
+            <div style="background: var(--tc-surface-subtle); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md);">
+                <span style="font-size: 0.75rem; font-weight: 600; color: var(--tc-text-muted); text-transform: uppercase;">Captured Timestamp:</span>
+                <div style="font-size: 0.875rem; font-weight: 600; color: var(--tc-text); margin-top: 0.15rem;">{{ capture.captured_at|date:"Y-m-d H:i:s" }} UTC</div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Payable Breakdown -->
+        <h3 style="font-size: 1rem; font-weight: 700; color: var(--tc-primary); margin-bottom: 0.5rem;">Payable Breakdown</h3>
+        <table class="tc-table" style="margin-bottom: var(--tc-space-md);">
+            <tbody>
+                <tr>
+                    <td style="color: var(--tc-text-muted);">Product:</td>
+                    <td><strong>{{ order.proposal.product.title }}</strong></td>
+                </tr>
+                <tr>
+                    <td style="color: var(--tc-text-muted);">Quantity:</td>
+                    <td>{{ order.quantity }}</td>
+                </tr>
+                <tr>
+                    <td style="color: var(--tc-text-muted);">Item Subtotal:</td>
+                    <td>${{ order.base_amount }} {{ order.currency }}</td>
+                </tr>
+                <tr>
+                    <td style="color: var(--tc-text-muted);">Shipping:</td>
+                    <td>${{ order.shipping_amount }} {{ order.currency }}</td>
+                </tr>
+                <tr>
+                    <td style="color: var(--tc-text-muted);">Tax:</td>
+                    <td>${{ order.tax_amount }} {{ order.currency }}</td>
+                </tr>
+                {% if order.fee_amount > 0 %}
+                <tr>
+                    <td style="color: var(--tc-text-muted);">Fees:</td>
+                    <td>${{ order.fee_amount }} {{ order.currency }}</td>
+                </tr>
+                {% endif %}
+                <tr style="border-top: 2px solid var(--tc-border); font-size: 1.05rem; font-weight: 700;">
+                    <td>Total Paid:</td>
+                    <td style="color: var(--tc-success); font-size: 1.2rem;">${{ order.total_amount }} {{ order.currency }}</td>
+                </tr>
+            </tbody>
+        </table>
+
+        {% if receipt_audit %}
+        <div class="tc-alert {% if receipt_audit.amounts_verified %}tc-alert-success{% else %}tc-alert-warning{% endif %}" style="margin-bottom: var(--tc-space-md); font-size: 0.84rem;">
+            <div>
+                {% if receipt_audit.amounts_verified %}
+                <strong>Totals Reconciled:</strong>
+                Recorded subtotal, shipping, and tax total <strong>${{ receipt_audit.expected_total }} {{ order.currency }}</strong>{% if receipt_audit.capture_amount %}, matching captured PayPal Sandbox amount <strong>${{ receipt_audit.capture_amount }} {{ receipt_audit.capture_currency }}</strong>{% endif %}.
+                {% else %}
+                <strong>Verification Notice:</strong>
+                Stored breakdown total is ${{ receipt_audit.expected_total }} {{ order.currency }}{% if receipt_audit.capture_amount %}, while PayPal capture record shows ${{ receipt_audit.capture_amount }} {{ receipt_audit.capture_currency }}{% endif %}.
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="tc-action-bar" style="display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 0.75rem; margin-top: var(--tc-space-md); border-top: 1px solid var(--tc-border); padding-top: var(--tc-space-md);">
+            {% if order.contract %}
+            <a href="{% url 'contract_evaluation' order.contract.public_ref %}" class="tc-btn tc-btn-outline">
+                &larr; Back to Product Results
+            </a>
+            {% endif %}
+            <a href="{% url 'payments:history' %}" class="tc-btn tc-btn-outline">
+                Payment History
+            </a>
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-primary tc-btn-lg">
+                Start New Search &rarr;
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

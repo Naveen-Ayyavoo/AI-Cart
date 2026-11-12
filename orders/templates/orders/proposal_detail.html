@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+
+{% block title %}Review Purchase Summary — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Review Your Purchase Summary</h1>
+            <p class="tc-page-intro-sub">
+                Check the product, seller, itemized price breakdown, and PayPal Sandbox demo payee details before approving this purchase summary.
+            </p>
+        </div>
+        <div class="tc-page-intro-actions">
+            <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-secondary tc-btn-sm">
+                &larr; Back to Results
+            </a>
+        </div>
+    </div>
+
+    <!-- Controlled Demo Payee Disclosure Banner -->
+    <div class="tc-card" style="background-color: var(--tc-success-bg); border: 1px solid var(--tc-success-border); border-left: 4px solid var(--tc-success); margin-bottom: var(--tc-space-md); padding: var(--tc-space-md);">
+        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
+            <span style="font-size: 1.25rem;" aria-hidden="true">&#x1F6E1;</span>
+            <div>
+                <strong style="color: var(--tc-success-text); font-size: 0.95rem;">PayPal Sandbox Demo Merchant Notice</strong>
+                <p class="tc-prose" style="color: var(--tc-success-text); font-size: 0.84rem; margin-top: 0.25rem; line-height: 1.45;">
+                    {{ demo_payee_disclosure }}
+                    Product found from seller <strong>{{ proposal.source_merchant }}</strong>; test checkout uses demo merchant account <code>{{ proposal.payee_id }}</code> in PayPal Sandbox.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Proposal Presentation Card -->
+    {% if contract.extraction_provenance.buy_anyway_acknowledgment %}
+    <div class="tc-alert tc-alert-warning" role="status" style="margin-bottom: var(--tc-space-md);">
+        <div>
+            <strong>Shopper Override Recorded (Version {{ contract.version }}):</strong>
+            You previously chose <strong>Buy Anyway</strong> for <strong>{{ contract.extraction_provenance.buy_anyway_acknowledgment.product_title }}</strong> and updated your requirements. Normal policy verification and separate purchase/PayPal Sandbox approvals still apply.
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="tc-card" style="border: 2px solid var(--tc-accent);">
+        <div class="tc-card-header">
+            <div>
+                <span class="tc-badge tc-badge-primary" style="margin-bottom: 0.35rem;">Purchase Summary</span>
+                <h2 style="font-size: 1.3rem; font-weight: 800; color: var(--tc-primary); margin-top: 0.2rem;">
+                    Review Itemized Total &amp; Terms
+                </h2>
+                <p class="tc-card-subtitle">
+                    Matched against your confirmed requirements (Version {{ contract.version }}).
+                </p>
+            </div>
+            <div style="text-align: right;">
+                <span class="tc-badge tc-badge-confirmed">STATUS: {{ proposal.status }}</span>
+                <div style="font-size: 0.75rem; color: var(--tc-text-muted); margin-top: 0.25rem;">
+                    Created: {{ proposal.created_at|date:"Y-m-d H:i" }} UTC
+                </div>
+            </div>
+        </div>
+
+        <!-- Essential Product Information (Immediately Visible) -->
+        <div style="display: flex; gap: var(--tc-space-md); flex-wrap: wrap; align-items: center; padding: 1rem; background-color: var(--tc-surface-subtle); border-radius: var(--tc-radius-md); margin-bottom: var(--tc-space-md);">
+            {% if product.image_url %}
+            <div style="width: 80px; height: 80px; border-radius: var(--tc-radius-sm); overflow: hidden; background: #ffffff; flex-shrink: 0; display: flex; align-items: center; justify-content: center; border: 1px solid var(--tc-border);">
+                <img src="{{ product.image_url }}" alt="{{ product.title }}" style="width: 100%; height: 100%; object-fit: contain; padding: 4px;" onerror="this.onerror=null; this.style.display='none';">
+            </div>
+            {% endif %}
+            <div style="flex: 1; min-width: 240px;">
+                {% if product.brand %}
+                <div style="font-size: 0.75rem; font-weight: 700; color: var(--tc-accent); text-transform: uppercase;">{{ product.brand }}</div>
+                {% endif %}
+                <h2 style="font-size: 1.1rem; font-weight: 700; color: var(--tc-text); margin-bottom: 0.25rem;">{{ product.title }}</h2>
+                <div style="font-size: 0.8125rem; color: var(--tc-text-muted);">
+                    Category: <strong>{{ contract.category }}</strong> &bull;
+                    Discovered on: <strong>{{ proposal.source_merchant }}</strong> &bull;
+                    Variant / SKU: <code>{{ proposal.sku|default:proposal.variant_id|default:"Default" }}</code>
+                </div>
+            </div>
+        </div>
+
+        <!-- Policy & Constraint Verification Summary (Immediately Visible in Primary Review Area) -->
+        <div style="background: var(--tc-surface-subtle); border: 1px solid var(--tc-border); padding: 0.75rem 1rem; border-radius: var(--tc-radius-md); margin-bottom: var(--tc-space-md); font-size: 0.8125rem;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem; flex-wrap: wrap; gap: 0.5rem;">
+                <strong style="color: var(--tc-primary); font-size: 0.875rem;">Policy Verification &amp; Hard Constraints</strong>
+                <span class="tc-badge tc-badge-success">Policy Outcome: ELIGIBLE</span>
+            </div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 0.35rem; flex-wrap: wrap; gap: 0.25rem;">
+                <span style="color: var(--tc-text-muted);">Contract Budget Ceiling:</span>
+                <strong>${{ contract.max_budget }} {{ contract.currency }} (Total: ${{ proposal.total_amount }} {{ proposal.currency }} &bull; <span style="color: var(--tc-success);">&#x2714; Within Budget</span>)</strong>
+            </div>
+            {% if contract.required_specs %}
+            <div style="margin-bottom: 0.35rem;">
+                <span style="color: var(--tc-text-muted);">Required Specifications Verified:</span>
+                {% for k, v in contract.required_specs.items %}
+                <span class="tc-badge tc-badge-spec" style="font-size: 0.75rem; margin-left: 0.25rem;">{{ k }}: {{ v }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+            {% if contract.excluded_terms %}
+            <div>
+                <span style="color: var(--tc-text-muted);">Excluded Terms Verified:</span>
+                {% for term in contract.excluded_terms %}
+                <span class="tc-badge tc-badge-outline" style="font-size: 0.75rem; margin-left: 0.25rem;">No {{ term }}</span>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Essential Complete Known Payable Breakdown (Immediately Visible) -->
+        <h3 style="font-size: 1rem; font-weight: 700; color: var(--tc-primary); margin-bottom: 0.5rem;">
+            Payable Amount Breakdown
+        </h3>
+        <div style="background-color: #ffffff; border: 1px solid var(--tc-border); border-radius: var(--tc-radius-md); overflow: hidden; margin-bottom: var(--tc-space-md);">
+            <div style="display: flex; justify-content: space-between; padding: 0.65rem 1rem; border-bottom: 1px solid var(--tc-border-subtle); font-size: 0.875rem;">
+                <span style="color: var(--tc-text-muted);">Unit Price &times; Quantity</span>
+                <strong>${{ proposal.unit_price }} &times; {{ proposal.quantity }} = ${{ proposal.base_amount }} {{ proposal.currency }}</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.65rem 1rem; border-bottom: 1px solid var(--tc-border-subtle); font-size: 0.875rem;">
+                <span style="color: var(--tc-text-muted);">Standard Delivery / Shipping</span>
+                <strong style="color: var(--tc-success);">${{ proposal.shipping_amount }} {{ proposal.currency }} (Standard Free Shipping)</strong>
+            </div>
+            <div style="display: flex; justify-content: space-between; padding: 0.65rem 1rem; border-bottom: 1px solid var(--tc-border-subtle); font-size: 0.875rem;">
+                <span style="color: var(--tc-text-muted);">Estimated Tax &amp; Duties</span>
+                <strong>${{ proposal.tax_amount }} {{ proposal.currency }}</strong>
+            </div>
+            {% if proposal.fee_amount > 0 %}
+            <div style="display: flex; justify-content: space-between; padding: 0.65rem 1rem; border-bottom: 1px solid var(--tc-border-subtle); font-size: 0.875rem;">
+                <span style="color: var(--tc-text-muted);">Mandatory Fees</span>
+                <strong>${{ proposal.fee_amount }} {{ proposal.currency }}</strong>
+            </div>
+            {% endif %}
+            <div style="display: flex; justify-content: space-between; padding: 0.85rem 1rem; background-color: var(--tc-surface-subtle); font-size: 1.1rem; align-items: center;">
+                <span style="font-weight: 800; color: var(--tc-primary);">Total Payable Amount</span>
+                <span style="font-weight: 800; color: var(--tc-primary); font-size: 1.35rem;">${{ proposal.total_amount }} {{ proposal.currency }}</span>
+            </div>
+        </div>
+
+        <p style="font-size: 0.775rem; color: var(--tc-text-muted); margin-top: -0.5rem; margin-bottom: var(--tc-space-md); line-height: 1.4;">
+            <em>Note on Tax &amp; Shipping:</em> Subtotal and delivery rates reflect verified catalog evidence; final tax settlement is bound into the purchase proposal and will not exceed this ceiling upon checkout.
+        </p>
+
+        <!-- Essential Demo Merchant / Payee Notice (Immediately Visible) -->
+        <div style="display: flex; justify-content: space-between; align-items: center; padding: 0.65rem 1rem; background: var(--tc-surface-subtle); border-radius: var(--tc-radius-sm); margin-bottom: var(--tc-space-md); font-size: 0.8125rem; flex-wrap: wrap; gap: 0.5rem;">
+            <div>
+                <span style="color: var(--tc-text-muted);">PayPal Sandbox Demo Payee:</span>
+                <strong style="margin-left: 0.35rem;"><code>{{ proposal.payee_id }}</code></strong>
+            </div>
+            <span class="tc-badge tc-badge-spec">Test Merchant Account</span>
+        </div>
+
+        <p class="tc-prose" style="font-size: 0.84rem; color: var(--tc-text-muted); margin-bottom: var(--tc-space-md); line-height: 1.5;">
+            Approving this summary prepares a 15-minute checkout pass locked to these exact terms. <strong>It does not charge your account.</strong> PayPal buyer sign-in happens separately on the next screen.
+        </p>
+
+        <!-- Primary Action Section (Immediately Visible) -->
+        {% if proposal.contract.state != 'CONFIRMED' or proposal.status == 'SUPERSEDED' %}
+        <div class="tc-card" style="background-color: var(--tc-danger-bg); border: 1px solid var(--tc-danger-border); padding: 1.25rem; margin-top: var(--tc-space-md);">
+            <strong style="color: var(--tc-danger-text); font-size: 1rem;">&#x26A0; Summary Outdated &mdash; Requirements Updated</strong>
+            <p style="color: var(--tc-danger-text); font-size: 0.85rem; margin: 0.35rem 0 0.75rem 0;">
+                Requirements Version {{ contract.version }} is currently <strong>{{ contract.state }}</strong>. Approvals cannot be granted for outdated plans.
+            </p>
+            <div style="display: flex; gap: 0.75rem; flex-wrap: wrap;">
+                {% if latest_contract %}
+                <a href="{% url 'contract_review' latest_contract.public_ref %}" class="tc-btn tc-btn-primary tc-btn-sm">
+                    Review Updated Plan (v{{ latest_contract.version }}) &rarr;
+                </a>
+                {% endif %}
+                <a href="{% url 'home' %}" class="tc-btn tc-btn-outline tc-btn-sm">New Search</a>
+            </div>
+        </div>
+        {% elif proposal.status == 'REJECTED' %}
+        <div class="tc-card" style="background-color: var(--tc-surface-subtle); border: 1px solid var(--tc-border); padding: 1.25rem; margin-top: var(--tc-space-md);">
+            <strong style="color: var(--tc-danger-text); font-size: 1rem;">Purchase Summary Declined</strong>
+            <p style="color: var(--tc-text-muted); font-size: 0.85rem; margin: 0.35rem 0 0.75rem 0;">
+                This summary was declined. Return to your results to choose another product.
+            </p>
+            <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-secondary tc-btn-sm">
+                &larr; Return to Results
+            </a>
+        </div>
+        {% elif proposal.status == 'APPROVED' %}
+        <div class="tc-action-bar" style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; padding-top: var(--tc-space-md); border-top: 1px solid var(--tc-border);">
+            <div style="display: flex; align-items: center; gap: 0.5rem; color: var(--tc-success-text);">
+                <span style="font-size: 1.25rem;">&#x2714;</span>
+                <div>
+                    <strong style="font-size: 0.95rem;">Purchase Summary Approved &amp; Locked</strong>
+                    <div style="font-size: 0.775rem; color: var(--tc-text-muted);">Ready for PayPal Sandbox checkout.</div>
+                </div>
+            </div>
+            <div class="tc-approval-actions">
+                <a href="{% url 'contract_evaluation' contract.public_ref %}" class="tc-btn tc-btn-outline">
+                    &larr; Back to Results
+                </a>
+                {% if approval %}
+                <a href="{% url 'approval_detail' approval.public_ref %}" class="tc-btn tc-btn-primary tc-btn-lg">
+                    Continue to Checkout Approval &rarr;
+                </a>
+                {% endif %}
+            </div>
+        </div>
+        {% elif proposal.charges_confirmed %}
+        <form method="post"
+              action="{% url 'proposal_detail' proposal.public_ref %}"
+              data-loading-form
+              data-loading-label="Processing decision...">
+            {% csrf_token %}
+            <div class="tc-action-bar" style="justify-content: flex-end; padding-top: var(--tc-space-md); border-top: 1px solid var(--tc-border);">
+                <button type="submit" name="action" value="reject" data-loading-label="Rejecting proposal..." class="tc-btn tc-btn-outline" style="color: var(--tc-danger); border-color: var(--tc-danger-border);">
+                    Reject Proposal
+                </button>
+                <button type="submit" name="action" value="approve" data-loading-label="Issuing approval token..." class="tc-btn tc-btn-success tc-btn-lg">
+                    &#x2714; I Explicitly Approve This Purchase Proposal
+                </button>
+            </div>
+        </form>
+        {% else %}
+        <div class="tc-card" style="background-color: var(--tc-warning-bg); border: 1px solid var(--tc-warning-border); text-align: center; padding: 1.5rem; margin-top: var(--tc-space-md);">
+            <strong style="color: var(--tc-warning-text); font-size: 1rem;">&#x26A0; Approval Blocked: Critical Charges Unknown</strong>
+            <p style="color: var(--tc-warning-text); font-size: 0.85rem; margin-top: 0.35rem;">
+                In accordance with AI Cart's Fail-Closed policy, proposals with unconfirmed shipping or taxes cannot be approved.
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

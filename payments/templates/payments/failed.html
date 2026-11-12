@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+
+{% block title %}Payment Failed — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">Payment Could Not Be Completed</h1>
+            <p class="tc-page-intro-sub" style="color: var(--tc-danger-text);">
+                {{ error_message|default:"Payment capture was declined or failed final order verification." }}
+            </p>
+        </div>
+        <div class="tc-page-intro-actions">
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-outline tc-btn-sm">New Search</a>
+        </div>
+    </div>
+
+    <div class="tc-card" style="border-left: 4px solid var(--tc-danger); text-align: center; padding: var(--tc-space-lg) var(--tc-space-md); margin-bottom: var(--tc-space-md);">
+        <div style="background-color: var(--tc-danger); color: white; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto 0.65rem auto;" aria-hidden="true">
+            &#x2715;
+        </div>
+        <h2 style="font-size: 1.3rem; font-weight: 800; color: var(--tc-primary); margin-bottom: 0.35rem;">
+            Payment Execution Failed
+        </h2>
+        <p class="tc-subtitle" style="font-size: 0.92rem; color: var(--tc-danger-text);">
+            {{ error_message|default:"No funds were captured." }}
+        </p>
+    </div>
+
+    <!-- Controlled Demo Payee Disclosure Banner -->
+    <div class="tc-card" style="background-color: var(--tc-danger-bg); border: 1px solid var(--tc-danger-border); font-size: 0.84rem; color: var(--tc-danger-text); margin-bottom: var(--tc-space-md); padding: var(--tc-space-md);">
+        {{ demo_payee_disclosure }}
+    </div>
+
+    <div class="tc-card">
+        <p class="tc-prose" style="font-size: 0.875rem; color: var(--tc-text-muted); margin-bottom: var(--tc-space-lg); line-height: 1.5;">
+            Because the order details did not pass final verification, no funds were charged or authorized. Return to your checked results or start a new search.
+        </p>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+            {% if order and order.contract %}
+            <a href="{% url 'contract_evaluation' order.contract.public_ref %}" class="tc-btn tc-btn-primary">
+                Return to Results &rarr;
+            </a>
+            {% endif %}
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-secondary">
+                Return to Search
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

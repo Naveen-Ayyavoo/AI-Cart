@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title|default:"Payment Pending Reconciliation" }} — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-page-intro">
+        <div class="tc-page-intro-main">
+            <h1 class="tc-page-intro-title">{{ title|default:"Payment Confirmation Pending" }}</h1>
+            <p class="tc-page-intro-sub">
+                {{ message|default:"A network delay occurred while confirming your PayPal Sandbox payment. AI Cart checks PayPal directly before finalizing your order." }}
+            </p>
+        </div>
+        <div class="tc-page-intro-actions">
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-outline tc-btn-sm">New Search</a>
+        </div>
+    </div>
+
+    <div class="tc-card" style="border-left: 4px solid var(--tc-warning); text-align: center; padding: var(--tc-space-lg) var(--tc-space-md); margin-bottom: var(--tc-space-md);">
+        <div style="background-color: var(--tc-warning-text); color: white; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.35rem; margin: 0 auto 0.65rem auto;" aria-hidden="true">
+            &#x21bb;
+        </div>
+        <h2 style="font-size: 1.3rem; font-weight: 800; color: var(--tc-primary); margin-bottom: 0.35rem;">
+            Checking Payment Status
+        </h2>
+        <p class="tc-subtitle" style="font-size: 0.92rem;">
+            Your order has not been charged twice. Use the status check button below to refresh from PayPal Sandbox.
+        </p>
+    </div>
+
+    <!-- Controlled Demo Payee Disclosure Banner -->
+    <div class="tc-card" style="background-color: var(--tc-warning-bg); border: 1px solid var(--tc-warning-border); font-size: 0.84rem; color: var(--tc-warning-text); margin-bottom: var(--tc-space-md); padding: var(--tc-space-md);">
+        {{ demo_payee_disclosure }}
+    </div>
+
+    <div class="tc-card">
+        <p class="tc-prose" style="font-size: 0.875rem; color: var(--tc-text-muted); margin-bottom: var(--tc-space-lg); line-height: 1.5;">
+            AI Cart checks PayPal directly to confirm whether the payment succeeded before marking an order paid.
+        </p>
+
+        <div style="display: flex; gap: 0.75rem; flex-wrap: wrap; align-items: center;">
+            {% if order and order.paypal_approval_url and order.status == 'CREATED' and order.contract.state == 'CONFIRMED' %}
+            <a href="{{ order.paypal_approval_url }}" class="tc-btn tc-btn-paypal tc-btn-lg">
+                Complete Approval on PayPal Sandbox &rarr;
+            </a>
+            {% elif order and order.contract.state != 'CONFIRMED' %}
+            <span class="tc-badge tc-badge-danger">
+                Requirements v{{ order.contract.version }} are {{ order.contract.state }} &mdash; checkout locked
+            </span>
+            {% endif %}
+
+            {% if order %}
+            <form method="post"
+                  action="{% url 'payments:order_reconcile' order.paypal_order_id %}"
+                  style="display: inline-block;"
+                  data-loading-form
+                  data-loading-label="Checking with PayPal...">
+                {% csrf_token %}
+                <button type="submit" class="tc-btn tc-btn-secondary">
+                    Check Status with PayPal Now &rarr;
+                </button>
+            </form>
+            {% endif %}
+
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-outline">
+                Return to Search
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+
+{% block title %}Page Not Found — AI Cart{% endblock %}
+
+{% block content %}
+<div class="tc-flow-container">
+    <div class="tc-card" style="max-width: 640px; margin: 3rem auto; text-align: center; padding: 2.5rem 2rem;">
+        <div style="display: inline-flex; align-items: center; justify-content: center; margin-bottom: 1.25rem;">
+            <span class="tc-badge tc-badge-spec" style="font-size: 0.95rem; font-weight: 800; padding: 0.35rem 0.85rem; letter-spacing: 0.06em;">404</span>
+        </div>
+        <h1 style="font-size: 1.75rem; font-weight: 800; color: var(--tc-primary); margin: 0 0 0.75rem 0; line-height: 1.25;">
+            Page not found
+        </h1>
+        <p class="tc-prose" style="color: var(--tc-text-muted); font-size: 1.05rem; line-height: 1.5; margin: 0 auto 2rem auto; max-width: 48ch;">
+            We couldn't find the page you're looking for. It may have moved, expired or the address may be incorrect.
+        </p>
+        <div class="tc-actions" style="justify-content: center; gap: 1rem; flex-wrap: wrap;">
+            <a href="{% url 'home' %}" class="tc-btn tc-btn-primary" id="btn-404-home">
+                Start New Shopping Search
+            </a>
+            <button type="button" class="tc-btn tc-btn-secondary" id="btn-404-back" onclick="if (window.history && window.history.length > 1) { window.history.back(); } else { window.location.href = '{% url 'home' %}'; }">
+                Go Back
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
