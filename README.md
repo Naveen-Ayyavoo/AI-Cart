@@ -2,6 +2,12 @@
 
 **An AI-assisted shopping experience where AI interprets what you want, deterministic software enforces your rules, and you remain in control of every purchase.**
 
+## Product Demo
+
+[![AI Cart — Product Demo](https://img.youtube.com/vi/74zCP4H-DqY/maxresdefault.jpg)](https://youtu.be/74zCP4H-DqY)
+
+[Watch the AI Cart demo on YouTube](https://youtu.be/74zCP4H-DqY)
+
 [![PayPal AI Hackathon](https://img.shields.io/badge/PayPal-AI%20Hackathon-blue)](https://paypalaihackathon.devpost.com/)
 [![Python](https://img.shields.io/badge/Python-3.14-blue)](https://www.python.org/)
 [![Django](https://img.shields.io/badge/Django-6.1-green)](https://www.djangoproject.com/)
